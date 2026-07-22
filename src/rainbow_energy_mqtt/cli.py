@@ -53,12 +53,16 @@ def main(argv: list[str] | None = None) -> int:
             device_id=config.modbus_device_id,
         )
 
-    mqtt_client = connect_mqtt_client(
-        host=config.mqtt_host,
-        port=config.mqtt_port,
-        username=config.mqtt_username,
-        password=config.mqtt_password,
-    )
+    try:
+        mqtt_client = connect_mqtt_client(
+            host=config.mqtt_host,
+            port=config.mqtt_port,
+            username=config.mqtt_username,
+            password=config.mqtt_password,
+        )
+    except OSError as error:
+        print(f"mqtt error: {error}", file=sys.stderr)
+        return 2
     publisher = MeasurementPublisher(
         client=mqtt_client,
         topic_prefix=config.mqtt_topic_prefix,

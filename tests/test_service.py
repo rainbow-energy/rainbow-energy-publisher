@@ -266,6 +266,45 @@ def test_main_reports_config_errors(tmp_path, capsys):
     assert "config error" in capsys.readouterr().err
 
 
+def test_main_reports_mqtt_connect_errors(monkeypatch, tmp_path, capsys):
+    """Exit non-zero when the MQTT broker cannot be reached."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+interval: 1.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
+""",
+        encoding="utf-8",
+    )
+
+    class FakeTransport:
+        def __enter__(self):
+            return FakeReader()
+
+        def __exit__(self, *_args):
+            return None
+
+    monkeypatch.setattr(
+        "rainbow_energy_mqtt.cli.ModbusReader.tcp",
+        lambda **_kwargs: FakeTransport(),
+    )
+
+    def boom(**_kwargs):
+        raise ConnectionRefusedError("connection refused")
+
+    monkeypatch.setattr("rainbow_energy_mqtt.cli.connect_mqtt_client", boom)
+
+    assert main(["--config", str(config_path)]) == 2
+    assert "mqtt error" in capsys.readouterr().err
+
+
 def test_main_loads_profile_from_path(monkeypatch, tmp_path):
     """Load a filesystem profile when profile_path is set."""
     profile_file = tmp_path / "device.yaml"

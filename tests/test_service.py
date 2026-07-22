@@ -3,11 +3,11 @@
 import logging
 from pathlib import Path
 
-from rainbow_energy_client.profiles import DeviceProfile, RegisterDefinition
+from rainbow_energy_client.profiles import DeviceProfile, ProfileError, RegisterDefinition
 from rainbow_energy_client.reader import RegisterData, RegisterReadError
 
 from rainbow_energy_mqtt.cli import main
-from rainbow_energy_mqtt.service import run_service
+from rainbow_energy_mqtt.service import configure_logging, run_service
 
 
 class FakeReader:
@@ -94,22 +94,38 @@ def test_run_service_logs_poll_errors_and_continues(caplog):
             self.reads += 1
             raise RegisterReadError("modbus unavailable")
 
-    seen: list[tuple] = []
+    reader = FailingReader()
 
     with caplog.at_level(logging.ERROR):
         run_service(
-            reader=FailingReader(),
+            reader=reader,
             profile=_profile(),
             keys=("battery_soc",),
             interval=0.5,
             sleep=lambda _seconds: None,
             iterations=2,
-            on_measurements=seen.append,
         )
 
-    assert seen == []
+    assert reader.reads == 2
     assert "poll failed" in caplog.text
     assert "modbus unavailable" in caplog.text
+
+
+def test_configure_logging_uses_basic_config_without_handlers():
+    """Install a root handler when logging has not been configured yet."""
+    root = logging.getLogger()
+    saved = list(root.handlers)
+    for handler in saved:
+        root.removeHandler(handler)
+    try:
+        configure_logging("WARNING")
+        assert root.handlers
+        assert root.level == logging.WARNING
+    finally:
+        for handler in list(root.handlers):
+            root.removeHandler(handler)
+        for handler in saved:
+            root.addHandler(handler)
 
 
 def test_main_runs_service_from_config(monkeypatch):
@@ -152,3 +168,109 @@ def test_main_runs_service_from_config(monkeypatch):
     assert ran["interval"] == 5.0
     assert ran["log_level"] == "INFO"
     assert ran["profile"].model == "SYNK-8K-SG05LP1"
+
+
+def test_main_reports_config_errors(tmp_path, capsys):
+    """Exit non-zero when the config file cannot be loaded."""
+    path = tmp_path / "missing.yaml"
+    assert main(["--config", str(path)]) == 2
+    assert "config error" in capsys.readouterr().err
+
+
+def test_main_loads_profile_from_path(monkeypatch, tmp_path):
+    """Load a filesystem profile when profile_path is set."""
+    profile_file = tmp_path / "device.yaml"
+    profile_file.write_text("unused", encoding="utf-8")
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"""
+interval: 1.0
+profile_path: {profile_file}
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+""",
+        encoding="utf-8",
+    )
+    loaded: dict = {}
+
+    class FakeTransport:
+        def __enter__(self):
+            return FakeReader()
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_load_profile(path):
+        loaded["path"] = path
+        return _profile()
+
+    monkeypatch.setattr("rainbow_energy_mqtt.cli.load_profile", fake_load_profile)
+    monkeypatch.setattr(
+        "rainbow_energy_mqtt.cli.ModbusReader.tcp",
+        lambda **_kwargs: FakeTransport(),
+    )
+    monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)
+
+    assert main(["--config", str(config_path)]) == 0
+    assert loaded["path"] == profile_file
+
+
+def test_main_reports_profile_errors(monkeypatch, tmp_path, capsys):
+    """Exit non-zero when the packaged profile cannot be loaded."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+interval: 1.0
+profile: missing_device
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+""",
+        encoding="utf-8",
+    )
+
+    def boom(_name):
+        raise ProfileError("unknown profile")
+
+    monkeypatch.setattr("rainbow_energy_mqtt.cli.load_packaged_profile", boom)
+
+    assert main(["--config", str(config_path)]) == 2
+    assert "profile error" in capsys.readouterr().err
+
+
+def test_main_opens_usb_serial_reader(monkeypatch, tmp_path):
+    """Open a serial reader when modbus.usb is configured."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+interval: 1.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  device_id: 2
+  usb:
+    port: /dev/ttyUSB0
+""",
+        encoding="utf-8",
+    )
+    opened: dict = {}
+
+    class FakeTransport:
+        def __enter__(self):
+            return FakeReader()
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_serial(*, port, device_id=1, client=None):
+        opened.update(port=port, device_id=device_id)
+        return FakeTransport()
+
+    monkeypatch.setattr("rainbow_energy_mqtt.cli.ModbusReader.serial", fake_serial)
+    monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)
+
+    assert main(["--config", str(config_path)]) == 0
+    assert opened == {"port": "/dev/ttyUSB0", "device_id": 2}

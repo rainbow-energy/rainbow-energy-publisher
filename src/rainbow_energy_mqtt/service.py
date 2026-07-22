@@ -7,7 +7,6 @@ from collections.abc import Callable, Sequence
 from time import sleep as default_sleep
 
 from rainbow_energy_client import Client, ClientError
-from rainbow_energy_client.decode import Measurement
 from rainbow_energy_client.device import RegisterReader
 from rainbow_energy_client.profiles import DeviceProfile
 
@@ -37,7 +36,6 @@ def run_service(
     interval: float = 1.0,
     sleep: Callable[[float], None] = default_sleep,
     iterations: int | None = None,
-    on_measurements: Callable[[tuple[Measurement, ...]], None] | None = None,
     log_level: str = DEFAULT_LOG_LEVEL,
 ) -> None:
     """Poll measurements until interrupted or iterations complete."""
@@ -61,7 +59,5 @@ def run_service(
                     measurement.value,
                     measurement.unit,
                 )
-            if on_measurements is not None:
-                on_measurements(measurements)
     except KeyboardInterrupt:
         return

@@ -42,6 +42,7 @@ testpaths = ["tests"]
 addopts = [
   "--cov=rainbow_energy_mqtt",
   "--cov-report=term-missing",
+  "--cov-fail-under=100",
 ]
 
 [tool.ruff]

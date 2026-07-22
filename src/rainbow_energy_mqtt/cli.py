@@ -63,6 +63,9 @@ def main(argv: list[str] | None = None) -> int:
         client=mqtt_client,
         topic_prefix=config.mqtt_topic_prefix,
         retain=config.mqtt_retain,
+        device_id=config.mqtt_device_id,
+        discovery_prefix=config.mqtt_discovery_prefix,
+        ha_discovery=config.mqtt_ha_discovery,
     )
     try:
         with reader:

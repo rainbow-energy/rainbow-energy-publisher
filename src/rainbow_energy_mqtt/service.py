@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from time import sleep as default_sleep
 
 from rainbow_energy_client import Client, ClientError
+from rainbow_energy_client.decode import Measurement
 from rainbow_energy_client.device import RegisterReader
 from rainbow_energy_client.profiles import DeviceProfile
 
@@ -43,6 +44,24 @@ def run_service(
     """Poll measurements until interrupted or iterations complete."""
     configure_logging(log_level)
     client = Client(reader, profile, keys=keys)
+
+    if publisher is not None and publisher.ha_discovery:
+        registers = {register.key: register for register in profile.registers}
+        discovery_measurements = tuple(
+            Measurement(
+                key=key,
+                name=registers[key].name,
+                value=0,
+                unit=registers[key].unit,
+            )
+            for key in keys
+            if key in registers
+        )
+        publisher.publish_discovery(
+            discovery_measurements,
+            manufacturer=profile.manufacturer,
+            model=profile.model,
+        )
 
     def on_error(error: ClientError) -> None:
         logger.error("poll failed: %s", error, exc_info=error)

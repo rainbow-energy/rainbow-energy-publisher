@@ -27,7 +27,9 @@ to `1883`, `topic_prefix`, and optional `username` / `password`). Prefer
 Optional publish options: `retain` (default `true`), `device_id`,
 `ha_discovery` (default `false`), and `discovery_prefix` (default
 `homeassistant`). Each poll publishes `topic_prefix/<key>` with the
-measurement value and still logs readings at INFO.
+measurement value and still logs readings at INFO. When `ha_discovery` is
+true, retained Home Assistant MQTT sensor discovery configs are published
+once at startup (requires `device_id`).
 
 Docker:
 

@@ -95,6 +95,40 @@ def test_run_service_publishes_measurements_each_tick():
     ]
 
 
+def test_run_service_publishes_discovery_once_at_start():
+    """Publish Home Assistant discovery once before the poll loop when enabled."""
+    published: list[tuple[str, str, bool]] = []
+
+    class FakeMqtt:
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
+            published.append((topic, payload, retain))
+
+    run_service(
+        reader=FakeReader(values=(85,)),
+        profile=_profile(),
+        keys=("battery_soc",),
+        interval=0.5,
+        sleep=lambda _seconds: None,
+        iterations=2,
+        publisher=MeasurementPublisher(
+            client=FakeMqtt(),
+            topic_prefix="rainbow/energy",
+            device_id="inverter-1",
+            ha_discovery=True,
+        ),
+    )
+
+    discovery = [item for item in published if item[0].endswith("/config")]
+    assert len(discovery) == 1
+    assert discovery[0][0] == "homeassistant/sensor/inverter-1/battery_soc/config"
+    assert discovery[0][2] is True
+    assert published[0] == discovery[0]
+    assert [item[:2] for item in published[1:]] == [
+        ("rainbow/energy/battery_soc", "85.0"),
+        ("rainbow/energy/battery_soc", "85.0"),
+    ]
+
+
 def test_run_service_stops_on_interrupt():
     """Stop cleanly when a tick sleep raises KeyboardInterrupt."""
     ticks: list[float] = []
@@ -221,6 +255,8 @@ def test_main_runs_service_from_config(monkeypatch):
     assert ran["profile"].model == "SYNK-8K-SG05LP1"
     assert ran["publisher"] is not None
     assert ran["publisher"]._retain is True
+    assert ran["publisher"].ha_discovery is False
+    assert ran["publisher"]._device_id is None
 
 
 def test_main_reports_config_errors(tmp_path, capsys):

@@ -21,6 +21,7 @@ class MeasurementPublisher:
         retain: bool = True,
         device_id: str | None = None,
         discovery_prefix: str = "homeassistant",
+        ha_discovery: bool = False,
     ) -> None:
         """Bind an MQTT client, topic prefix, retain flag, and discovery settings."""
         self._client = client
@@ -28,6 +29,12 @@ class MeasurementPublisher:
         self._retain = retain
         self._device_id = device_id
         self._discovery_prefix = discovery_prefix.rstrip("/")
+        self._ha_discovery = ha_discovery
+
+    @property
+    def ha_discovery(self) -> bool:
+        """Return whether Home Assistant discovery should be published at startup."""
+        return self._ha_discovery
 
     def publish(self, measurements: Sequence[Measurement]) -> None:
         """Publish each measurement value as a string payload on its state topic."""

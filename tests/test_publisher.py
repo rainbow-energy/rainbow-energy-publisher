@@ -90,3 +90,17 @@ def test_publish_discovery_writes_ha_sensor_config():
             "model": "SYNK-8K-SG05LP1",
         },
     }
+
+
+def test_publish_discovery_skips_when_device_id_missing():
+    """Do not publish discovery configs without a configured device_id."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(client=client, topic_prefix="rainbow/energy")
+
+    publisher.publish_discovery(
+        (Measurement(key="battery_soc", name="Battery SOC", value=85.0, unit="%"),),
+        manufacturer="Sunsynk",
+        model="SYNK-8K-SG05LP1",
+    )
+
+    assert client.published == []

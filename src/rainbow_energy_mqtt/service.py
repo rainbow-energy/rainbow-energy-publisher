@@ -57,11 +57,14 @@ def run_service(
             for key in keys
             if key in registers
         )
-        publisher.publish_discovery(
-            discovery_measurements,
-            manufacturer=profile.manufacturer,
-            model=profile.model,
-        )
+        try:
+            publisher.publish_discovery(
+                discovery_measurements,
+                manufacturer=profile.manufacturer,
+                model=profile.model,
+            )
+        except OSError as error:
+            logger.error("discovery publish failed: %s", error, exc_info=error)
 
     def on_error(error: ClientError) -> None:
         logger.error("poll failed: %s", error, exc_info=error)
@@ -81,6 +84,9 @@ def run_service(
                     measurement.unit,
                 )
             if publisher is not None:
-                publisher.publish(measurements)
+                try:
+                    publisher.publish(measurements)
+                except OSError as error:
+                    logger.error("publish failed: %s", error, exc_info=error)
     except KeyboardInterrupt:
         return

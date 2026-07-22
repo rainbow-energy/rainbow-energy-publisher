@@ -129,6 +129,61 @@ def test_run_service_publishes_discovery_once_at_start():
     ]
 
 
+def test_run_service_continues_when_publish_fails(caplog):
+    """Log publish failures and keep polling on later ticks."""
+    reader = FakeReader(values=(85,))
+
+    class BoomMqtt:
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
+            raise OSError("broker unavailable")
+
+    with caplog.at_level(logging.ERROR):
+        run_service(
+            reader=reader,
+            profile=_profile(),
+            keys=("battery_soc",),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=2,
+            publisher=MeasurementPublisher(
+                client=BoomMqtt(),
+                topic_prefix="rainbow/energy",
+            ),
+        )
+
+    assert reader.reads == 2
+    assert "publish failed" in caplog.text
+
+
+def test_run_service_continues_when_discovery_publish_fails(caplog):
+    """Log discovery publish failures and still run the poll loop."""
+    reader = FakeReader(values=(85,))
+
+    class BoomMqtt:
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
+            if topic.endswith("/config"):
+                raise OSError("broker unavailable")
+
+    with caplog.at_level(logging.ERROR):
+        run_service(
+            reader=reader,
+            profile=_profile(),
+            keys=("battery_soc",),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+            publisher=MeasurementPublisher(
+                client=BoomMqtt(),
+                topic_prefix="rainbow/energy",
+                device_id="inverter-1",
+                ha_discovery=True,
+            ),
+        )
+
+    assert reader.reads == 1
+    assert "discovery publish failed" in caplog.text
+
+
 def test_run_service_stops_on_interrupt():
     """Stop cleanly when a tick sleep raises KeyboardInterrupt."""
     ticks: list[float] = []

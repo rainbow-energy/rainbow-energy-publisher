@@ -1,0 +1,21 @@
+interval: 5.0
+# Optional; default is INFO (DEBUG, WARNING, ERROR, …)
+# log_level: DEBUG
+profile: sunsynk_8k_sg05lp1
+# Or use a custom map on disk:
+# profile_path: /maps/my_inverter.yaml
+keys:
+  - battery_soc
+  - battery_voltage
+  - battery_power
+  - pv_power
+  - load_power
+  - grid_power
+
+modbus:
+  device_id: 1
+  tcp:
+    host: modbus-gateway.example
+    port: 502
+  # usb:
+  #   port: /dev/ttyUSB0

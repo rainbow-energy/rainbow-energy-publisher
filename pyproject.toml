@@ -32,7 +32,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-rainbow-energy-client = { path = "../rainbow-energy-client", editable = true }
+rainbow-energy-client = { git = "https://github.com/rainbow-solar/rainbow-energy-client.git" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rainbow_energy_mqtt"]

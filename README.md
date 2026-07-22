@@ -6,9 +6,6 @@ and publishes measurements to MQTT (for Home Assistant and other subscribers).
 
 ## Install
 
-From this directory (sibling checkout of `rainbow-energy-client` at
-`../rainbow-energy-client`):
-
 ```bash
 uv sync
 ```

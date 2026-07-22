@@ -254,26 +254,11 @@ wheels = [
 [[package]]
 name = "rainbow-energy-client"
 version = "0.1.0"
-source = { editable = "../rainbow-energy-client" }
+source = { git = "https://github.com/rainbow-solar/rainbow-energy-client.git#815c4486ce0b5234721af65d59210ac08394d5b9" }
 dependencies = [
     { name = "jsonschema" },
     { name = "pymodbus", extra = ["serial"] },
     { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "jsonschema", specifier = ">=4.26.0" },
-    { name = "pymodbus", extras = ["serial"] },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pre-commit", specifier = ">=4.6.0" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "ruff", specifier = ">=0.9" },
 ]
 
 [[package]]
@@ -295,7 +280,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "rainbow-energy-client", editable = "../rainbow-energy-client" },
+    { name = "rainbow-energy-client", git = "https://github.com/rainbow-solar/rainbow-energy-client.git" },
 ]
 
 [package.metadata.requires-dev]

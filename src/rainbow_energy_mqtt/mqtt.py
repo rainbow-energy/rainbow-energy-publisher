@@ -12,9 +12,9 @@ class MqttClient:
         """Wrap a connected client from the configured MQTT library."""
         self._client = client
 
-    def publish(self, topic: str, payload: str) -> None:
+    def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
         """Publish one message to a topic."""
-        self._client.publish(topic, payload)
+        self._client.publish(topic, payload, retain=retain)
 
     def close(self) -> None:
         """Stop the network loop and disconnect."""

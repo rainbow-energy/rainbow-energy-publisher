@@ -26,6 +26,45 @@ def test_load_config_reads_mqtt_broker_settings():
     assert config.mqtt_password is None
 
 
+def test_load_config_defaults_mqtt_publish_options_when_omitted():
+    """Default retain, discovery, and related MQTT options when left out."""
+    config = load_config(_EXAMPLE_CONFIG)
+
+    assert config.mqtt_retain is True
+    assert config.mqtt_device_id is None
+    assert config.mqtt_ha_discovery is False
+    assert config.mqtt_discovery_prefix == "homeassistant"
+
+
+def test_load_config_reads_mqtt_publish_options_from_yaml(tmp_path: Path):
+    """Load retain, device_id, and Home Assistant discovery options from YAML."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: 5.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
+  retain: false
+  device_id: inverter-1
+  ha_discovery: true
+  discovery_prefix: ha
+""",
+    )
+
+    config = load_config(path)
+
+    assert config.mqtt_retain is False
+    assert config.mqtt_device_id == "inverter-1"
+    assert config.mqtt_ha_discovery is True
+    assert config.mqtt_discovery_prefix == "ha"
+
+
 def test_load_config_defaults_log_level_when_omitted():
     """Use INFO when log_level is left out of the example config."""
     assert load_config(_EXAMPLE_CONFIG).log_level == "INFO"

@@ -24,8 +24,10 @@ Stop with Ctrl-C.
 MQTT broker settings live under `mqtt:` (`host`, optional `port` defaulting
 to `1883`, `topic_prefix`, and optional `username` / `password`). Prefer
 `MQTT_USERNAME` / `MQTT_PASSWORD` env vars over putting secrets in YAML.
-Each poll publishes `topic_prefix/<key>` with the measurement value and
-still logs readings at INFO.
+Optional publish options: `retain` (default `true`), `device_id`,
+`ha_discovery` (default `false`), and `discovery_prefix` (default
+`homeassistant`). Each poll publishes `topic_prefix/<key>` with the
+measurement value and still logs readings at INFO.
 
 Docker:
 

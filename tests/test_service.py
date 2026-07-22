@@ -73,7 +73,7 @@ def test_run_service_publishes_measurements_each_tick():
     published: list[tuple[str, str]] = []
 
     class FakeMqtt:
-        def publish(self, topic: str, payload: str) -> None:
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
             published.append((topic, payload))
 
         def close(self) -> None:
@@ -170,7 +170,7 @@ def test_main_runs_service_from_config(monkeypatch):
             return None
 
     class FakeMqtt:
-        def publish(self, topic, payload):
+        def publish(self, topic, payload, *, retain=False):
             return None
 
         def close(self):
@@ -220,6 +220,7 @@ def test_main_runs_service_from_config(monkeypatch):
     assert ran["log_level"] == "INFO"
     assert ran["profile"].model == "SYNK-8K-SG05LP1"
     assert ran["publisher"] is not None
+    assert ran["publisher"]._retain is True
 
 
 def test_main_reports_config_errors(tmp_path, capsys):
@@ -271,7 +272,7 @@ mqtt:
         lambda **_kwargs: type(
             "Mqtt",
             (),
-            {"publish": lambda self, topic, payload: None, "close": lambda self: None},
+            {"publish": lambda self, *args, **kwargs: None, "close": lambda self: None},
         )(),
     )
     monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)
@@ -344,7 +345,7 @@ mqtt:
         lambda **_kwargs: type(
             "Mqtt",
             (),
-            {"publish": lambda self, topic, payload: None, "close": lambda self: None},
+            {"publish": lambda self, *args, **kwargs: None, "close": lambda self: None},
         )(),
     )
     monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)

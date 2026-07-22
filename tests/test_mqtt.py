@@ -26,8 +26,8 @@ def test_connect_mqtt_client_configures_broker(monkeypatch):
         def disconnect(self):
             created["disconnect"] = True
 
-        def publish(self, topic, payload):
-            created.setdefault("published", []).append((topic, payload))
+        def publish(self, topic, payload, retain=False):
+            created.setdefault("published", []).append((topic, payload, retain))
 
     monkeypatch.setattr("rainbow_energy_mqtt.mqtt.mqtt.Client", FakePaho)
 
@@ -43,7 +43,7 @@ def test_connect_mqtt_client_configures_broker(monkeypatch):
     assert created["auth"] == ("user", "secret")
     assert created["connect"] == ("mqtt.example", 1883)
     assert created["loop"] is True
-    assert created["published"] == [("rainbow/energy/battery_soc", "85.0")]
+    assert created["published"] == [("rainbow/energy/battery_soc", "85.0", False)]
     assert created["loop_stop"] is True
     assert created["disconnect"] is True
 

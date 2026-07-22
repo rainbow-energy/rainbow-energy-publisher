@@ -24,6 +24,10 @@ mqtt:
   host: mqtt.example
   # port: 1883
   topic_prefix: rainbow/energy
+  # retain: true
+  # device_id: inverter-1
+  # ha_discovery: false
+  # discovery_prefix: homeassistant
   # Optional auth; MQTT_USERNAME / MQTT_PASSWORD env vars override these
   # username: homeassistant
   # password: change-me

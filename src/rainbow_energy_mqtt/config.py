@@ -32,6 +32,10 @@ class ServiceConfig:
     mqtt_topic_prefix: str
     mqtt_username: str | None
     mqtt_password: str | None
+    mqtt_retain: bool
+    mqtt_device_id: str | None
+    mqtt_ha_discovery: bool
+    mqtt_discovery_prefix: str
     log_level: str
 
 
@@ -66,6 +70,12 @@ def load_config(path: Path) -> ServiceConfig:
         mqtt_topic_prefix=str(mqtt["topic_prefix"]),
         mqtt_username=_optional_secret("MQTT_USERNAME", mqtt.get("username")),
         mqtt_password=_optional_secret("MQTT_PASSWORD", mqtt.get("password")),
+        mqtt_retain=bool(mqtt.get("retain", True)),
+        mqtt_device_id=(
+            None if mqtt.get("device_id") is None else str(mqtt.get("device_id"))
+        ),
+        mqtt_ha_discovery=bool(mqtt.get("ha_discovery", False)),
+        mqtt_discovery_prefix=str(mqtt.get("discovery_prefix", "homeassistant")),
         log_level=str(raw.get("log_level", DEFAULT_LOG_LEVEL)).upper(),
     )
 

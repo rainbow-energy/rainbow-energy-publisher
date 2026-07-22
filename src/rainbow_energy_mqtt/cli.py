@@ -62,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     publisher = MeasurementPublisher(
         client=mqtt_client,
         topic_prefix=config.mqtt_topic_prefix,
+        retain=config.mqtt_retain,
     )
     try:
         with reader:

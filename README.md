@@ -7,7 +7,7 @@ and publishes measurements to MQTT (for Home Assistant and other subscribers).
 ## Install
 
 ```bash
-uv sync
+make sync
 ```
 
 ## Usage
@@ -15,7 +15,7 @@ uv sync
 ```bash
 cp config.yaml.example config.yaml
 # edit config.yaml
-uv run rainbow-energy-mqtt --config config.yaml
+make run
 ```
 
 Stop with Ctrl-C.
@@ -23,8 +23,17 @@ Stop with Ctrl-C.
 `config.yaml` is gitignored. Optional `log_level` defaults to `INFO`.
 Measurements are logged until MQTT lands.
 
+Docker:
+
+```bash
+make build
+docker run --rm -v "$PWD/config.yaml:/config/config.yaml:ro" rainbow-energy-mqtt
+```
+
 ## Development
 
 ```bash
-uv run pytest
+make check
 ```
+
+Run `make help` for all targets.

@@ -13,6 +13,7 @@ authors = [
   { name = "Rainbow Solar" },
 ]
 dependencies = [
+  "paho-mqtt>=2.1.0",
   "pyyaml>=6.0.3",
   "rainbow-energy-client",
 ]

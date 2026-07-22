@@ -10,6 +10,8 @@ from rainbow_energy_client import ModbusReader, load_packaged_profile
 from rainbow_energy_client.profiles import ProfileError, load_profile
 
 from rainbow_energy_mqtt.config import ConfigError, load_config
+from rainbow_energy_mqtt.mqtt import connect_mqtt_client
+from rainbow_energy_mqtt.publisher import MeasurementPublisher
 from rainbow_energy_mqtt.service import run_service
 
 
@@ -51,14 +53,28 @@ def main(argv: list[str] | None = None) -> int:
             device_id=config.modbus_device_id,
         )
 
-    with reader:
-        run_service(
-            reader=reader,
-            profile=profile,
-            keys=config.keys,
-            interval=config.interval,
-            log_level=config.log_level,
-        )
+    mqtt_client = connect_mqtt_client(
+        host=config.mqtt_host,
+        port=config.mqtt_port,
+        username=config.mqtt_username,
+        password=config.mqtt_password,
+    )
+    publisher = MeasurementPublisher(
+        client=mqtt_client,
+        topic_prefix=config.mqtt_topic_prefix,
+    )
+    try:
+        with reader:
+            run_service(
+                reader=reader,
+                profile=profile,
+                keys=config.keys,
+                interval=config.interval,
+                log_level=config.log_level,
+                publisher=publisher,
+            )
+    finally:
+        mqtt_client.close()
     return 0
 
 

@@ -11,6 +11,7 @@ from rainbow_energy_client.device import RegisterReader
 from rainbow_energy_client.profiles import DeviceProfile
 
 from rainbow_energy_mqtt.config import DEFAULT_LOG_LEVEL
+from rainbow_energy_mqtt.publisher import MeasurementPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ def run_service(
     sleep: Callable[[float], None] = default_sleep,
     iterations: int | None = None,
     log_level: str = DEFAULT_LOG_LEVEL,
+    publisher: MeasurementPublisher | None = None,
 ) -> None:
     """Poll measurements until interrupted or iterations complete."""
     configure_logging(log_level)
@@ -59,5 +61,7 @@ def run_service(
                     measurement.value,
                     measurement.unit,
                 )
+            if publisher is not None:
+                publisher.publish(measurements)
     except KeyboardInterrupt:
         return

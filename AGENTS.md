@@ -6,10 +6,10 @@
   [`rainbow-energy-client`](https://github.com/rainbow-solar/rainbow-energy-client)
   and will publish measurements to MQTT (for Home Assistant and other
   subscribers).
-- Until MQTT lands, successful polls are logged at INFO; do not invent a
-  temporary publishing path.
 - Depend on `rainbow-energy-client` for Modbus transport, profiles, and
   decoding; do not reimplement Modbus framing or register decode here.
+- Publish measurement state topics via an injectable MQTT client
+  (`MeasurementPublisher`); use fakes in unit tests, not a live broker.
 - Python dependencies and locking are managed with `uv`. The client package
   is pulled from git (see `[tool.uv.sources]` in `pyproject.toml`).
 - Lint and tests run locally through the `Makefile`. `make build` produces

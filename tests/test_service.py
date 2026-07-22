@@ -7,6 +7,7 @@ from rainbow_energy_client.profiles import DeviceProfile, ProfileError, Register
 from rainbow_energy_client.reader import RegisterData, RegisterReadError
 
 from rainbow_energy_mqtt.cli import main
+from rainbow_energy_mqtt.publisher import MeasurementPublisher
 from rainbow_energy_mqtt.service import configure_logging, run_service
 
 
@@ -65,6 +66,33 @@ def test_run_service_fetches_measurements_each_tick(caplog):
 
     assert reader.reads == 2
     assert "battery_soc=85.0 %" in caplog.text
+
+
+def test_run_service_publishes_measurements_each_tick():
+    """Hand each successful poll to the measurement publisher."""
+    published: list[tuple[str, str]] = []
+
+    class FakeMqtt:
+        def publish(self, topic: str, payload: str) -> None:
+            published.append((topic, payload))
+
+        def close(self) -> None:
+            return None
+
+    run_service(
+        reader=FakeReader(values=(85,)),
+        profile=_profile(),
+        keys=("battery_soc",),
+        interval=0.5,
+        sleep=lambda _seconds: None,
+        iterations=2,
+        publisher=MeasurementPublisher(client=FakeMqtt(), topic_prefix="rainbow/energy"),
+    )
+
+    assert published == [
+        ("rainbow/energy/battery_soc", "85.0"),
+        ("rainbow/energy/battery_soc", "85.0"),
+    ]
 
 
 def test_run_service_stops_on_interrupt():
@@ -132,6 +160,7 @@ def test_main_runs_service_from_config(monkeypatch):
     """Open Modbus from --config and hand settings to run_service."""
     opened: dict = {}
     ran: dict = {}
+    mqtt: dict = {}
 
     class FakeTransport:
         def __enter__(self):
@@ -140,14 +169,29 @@ def test_main_runs_service_from_config(monkeypatch):
         def __exit__(self, *_args):
             return None
 
+    class FakeMqtt:
+        def publish(self, topic, payload):
+            return None
+
+        def close(self):
+            mqtt["closed"] = True
+
     def fake_tcp(*, host, port=502, device_id=1, client=None):
         opened.update(host=host, port=port, device_id=device_id)
         return FakeTransport()
+
+    def fake_connect_mqtt_client(**kwargs):
+        mqtt["connect"] = kwargs
+        return FakeMqtt()
 
     def fake_run_service(**kwargs):
         ran.update(kwargs)
 
     monkeypatch.setattr("rainbow_energy_mqtt.cli.ModbusReader.tcp", fake_tcp)
+    monkeypatch.setattr(
+        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        fake_connect_mqtt_client,
+    )
     monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", fake_run_service)
 
     example = Path(__file__).resolve().parents[1] / "config.yaml.example"
@@ -157,6 +201,13 @@ def test_main_runs_service_from_config(monkeypatch):
         "port": 502,
         "device_id": 1,
     }
+    assert mqtt["connect"] == {
+        "host": "mqtt.example",
+        "port": 1883,
+        "username": None,
+        "password": None,
+    }
+    assert mqtt["closed"] is True
     assert ran["keys"] == (
         "battery_soc",
         "battery_voltage",
@@ -168,6 +219,7 @@ def test_main_runs_service_from_config(monkeypatch):
     assert ran["interval"] == 5.0
     assert ran["log_level"] == "INFO"
     assert ran["profile"].model == "SYNK-8K-SG05LP1"
+    assert ran["publisher"] is not None
 
 
 def test_main_reports_config_errors(tmp_path, capsys):
@@ -213,6 +265,14 @@ mqtt:
     monkeypatch.setattr(
         "rainbow_energy_mqtt.cli.ModbusReader.tcp",
         lambda **_kwargs: FakeTransport(),
+    )
+    monkeypatch.setattr(
+        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        lambda **_kwargs: type(
+            "Mqtt",
+            (),
+            {"publish": lambda self, topic, payload: None, "close": lambda self: None},
+        )(),
     )
     monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)
 
@@ -279,6 +339,14 @@ mqtt:
         return FakeTransport()
 
     monkeypatch.setattr("rainbow_energy_mqtt.cli.ModbusReader.serial", fake_serial)
+    monkeypatch.setattr(
+        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        lambda **_kwargs: type(
+            "Mqtt",
+            (),
+            {"publish": lambda self, topic, payload: None, "close": lambda self: None},
+        )(),
+    )
     monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)
 
     assert main(["--config", str(config_path)]) == 0

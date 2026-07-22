@@ -29,7 +29,8 @@ Optional publish options: `retain` (default `true`), `device_id`,
 `homeassistant`). Each poll publishes `topic_prefix/<key>` with the
 measurement value and still logs readings at INFO. When `ha_discovery` is
 true, retained Home Assistant MQTT sensor discovery configs are published
-once at startup (requires `device_id`).
+once at startup (requires `device_id`). The MQTT client reconnects
+automatically if the broker connection drops while the service is running.
 
 Docker:
 

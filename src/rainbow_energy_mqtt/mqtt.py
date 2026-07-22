@@ -29,8 +29,16 @@ def connect_mqtt_client(
     username: str | None = None,
     password: str | None = None,
 ) -> MqttClient:
-    """Connect to an MQTT broker and return a publisher-ready client."""
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    """Connect to an MQTT broker and return a publisher-ready client.
+
+    The underlying paho client reconnects automatically if the broker
+    connection drops while the network loop is running.
+    """
+    client = mqtt.Client(
+        mqtt.CallbackAPIVersion.VERSION2,
+        reconnect_on_failure=True,
+    )
+    client.reconnect_delay_set(min_delay=1, max_delay=120)
     if username is not None:
         client.username_pw_set(username, password)
     client.connect(host, port)

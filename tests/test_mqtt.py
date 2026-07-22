@@ -29,6 +29,9 @@ def test_connect_mqtt_client_configures_broker(monkeypatch):
         def publish(self, topic, payload, retain=False):
             created.setdefault("published", []).append((topic, payload, retain))
 
+        def reconnect_delay_set(self, min_delay=1, max_delay=120):
+            created["reconnect_delay"] = (min_delay, max_delay)
+
     monkeypatch.setattr("rainbow_energy_mqtt.mqtt.mqtt.Client", FakePaho)
 
     client = connect_mqtt_client(
@@ -65,9 +68,37 @@ def test_connect_mqtt_client_skips_auth_when_username_missing(monkeypatch):
         def loop_start(self):
             pass
 
+        def reconnect_delay_set(self, min_delay=1, max_delay=120):
+            pass
+
     monkeypatch.setattr("rainbow_energy_mqtt.mqtt.mqtt.Client", FakePaho)
 
     connect_mqtt_client(host="mqtt.example", port=1883)
 
     assert "auth" not in created
     assert created["connect"] == ("mqtt.example", 1883)
+
+
+def test_connect_mqtt_client_enables_automatic_reconnect(monkeypatch):
+    """Enable paho reconnect-on-failure and configure backoff delays."""
+    created: dict = {}
+
+    class FakePaho:
+        def __init__(self, *args, **kwargs):
+            created["init_kwargs"] = kwargs
+
+        def reconnect_delay_set(self, min_delay=1, max_delay=120):
+            created["reconnect_delay"] = (min_delay, max_delay)
+
+        def connect(self, host, port=1883, keepalive=60):
+            pass
+
+        def loop_start(self):
+            pass
+
+    monkeypatch.setattr("rainbow_energy_mqtt.mqtt.mqtt.Client", FakePaho)
+
+    connect_mqtt_client(host="mqtt.example", port=1883)
+
+    assert created["init_kwargs"]["reconnect_on_failure"] is True
+    assert created["reconnect_delay"] == (1, 120)

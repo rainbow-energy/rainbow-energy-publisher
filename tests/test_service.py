@@ -360,6 +360,53 @@ mqtt:
     assert "mqtt error" in capsys.readouterr().err
 
 
+def test_main_reports_modbus_open_errors(monkeypatch, tmp_path, capsys):
+    """Exit non-zero when the Modbus transport cannot be opened."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+interval: 1.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
+""",
+        encoding="utf-8",
+    )
+    mqtt: dict = {}
+
+    class BoomTransport:
+        def __enter__(self):
+            raise OSError("modbus unreachable")
+
+        def __exit__(self, *_args):
+            return None
+
+    class FakeMqtt:
+        def publish(self, *args, **kwargs):
+            return None
+
+        def close(self):
+            mqtt["closed"] = True
+
+    monkeypatch.setattr(
+        "rainbow_energy_mqtt.cli.ModbusReader.tcp",
+        lambda **_kwargs: BoomTransport(),
+    )
+    monkeypatch.setattr(
+        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        lambda **_kwargs: FakeMqtt(),
+    )
+
+    assert main(["--config", str(config_path)]) == 2
+    assert "modbus error" in capsys.readouterr().err
+    assert mqtt["closed"] is True
+
+
 def test_main_loads_profile_from_path(monkeypatch, tmp_path):
     """Load a filesystem profile when profile_path is set."""
     profile_file = tmp_path / "device.yaml"

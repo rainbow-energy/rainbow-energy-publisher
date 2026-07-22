@@ -81,6 +81,9 @@ def main(argv: list[str] | None = None) -> int:
                 log_level=config.log_level,
                 publisher=publisher,
             )
+    except OSError as error:
+        print(f"modbus error: {error}", file=sys.stderr)
+        return 2
     finally:
         mqtt_client.close()
     return 0

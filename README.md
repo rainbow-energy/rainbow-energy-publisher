@@ -21,7 +21,10 @@ make run
 Stop with Ctrl-C.
 
 `config.yaml` is gitignored. Optional `log_level` defaults to `INFO`.
-Measurements are logged until MQTT lands.
+MQTT broker settings live under `mqtt:` (`host`, optional `port` defaulting
+to `1883`, `topic_prefix`, and optional `username` / `password`). Prefer
+`MQTT_USERNAME` / `MQTT_PASSWORD` env vars over putting secrets in YAML.
+Measurements are logged until publishing lands.
 
 Docker:
 

@@ -19,3 +19,11 @@ modbus:
     port: 502
   # usb:
   #   port: /dev/ttyUSB0
+
+mqtt:
+  host: mqtt.example
+  # port: 1883
+  topic_prefix: rainbow/energy
+  # Optional auth; MQTT_USERNAME / MQTT_PASSWORD env vars override these
+  # username: homeassistant
+  # password: change-me

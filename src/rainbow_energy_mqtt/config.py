@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +27,11 @@ class ServiceConfig:
     modbus_tcp_host: str | None
     modbus_tcp_port: int
     modbus_usb_port: str | None
+    mqtt_host: str
+    mqtt_port: int
+    mqtt_topic_prefix: str
+    mqtt_username: str | None
+    mqtt_password: str | None
     log_level: str
 
 
@@ -44,6 +50,8 @@ def load_config(path: Path) -> ServiceConfig:
     if (tcp is None) == (usb is None):
         raise ConfigError("set exactly one of modbus.tcp or modbus.usb")
 
+    mqtt = raw["mqtt"]
+
     return ServiceConfig(
         interval=float(raw["interval"]),
         keys=tuple(raw["keys"]),
@@ -53,5 +61,22 @@ def load_config(path: Path) -> ServiceConfig:
         modbus_tcp_host=tcp.get("host") if tcp is not None else None,
         modbus_tcp_port=int(tcp.get("port", 502)) if tcp is not None else 502,
         modbus_usb_port=usb.get("port") if usb is not None else None,
+        mqtt_host=str(mqtt["host"]),
+        mqtt_port=int(mqtt.get("port", 1883)),
+        mqtt_topic_prefix=str(mqtt["topic_prefix"]),
+        mqtt_username=_optional_secret("MQTT_USERNAME", mqtt.get("username")),
+        mqtt_password=_optional_secret("MQTT_PASSWORD", mqtt.get("password")),
         log_level=str(raw.get("log_level", DEFAULT_LOG_LEVEL)).upper(),
     )
+
+
+def _optional_secret(env_name: str, yaml_value: object) -> str | None:
+    """Return an env override, else the YAML value, else None."""
+    if env_name in os.environ:
+        value = os.environ[env_name]
+    else:
+        value = yaml_value
+    if value is None:
+        return None
+    text = str(value)
+    return text or None

@@ -190,6 +190,9 @@ keys: [battery_soc]
 modbus:
   tcp:
     host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
 """,
         encoding="utf-8",
     )
@@ -228,6 +231,9 @@ keys: [battery_soc]
 modbus:
   tcp:
     host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
 """,
         encoding="utf-8",
     )
@@ -253,6 +259,9 @@ modbus:
   device_id: 2
   usb:
     port: /dev/ttyUSB0
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
 """,
         encoding="utf-8",
     )

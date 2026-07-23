@@ -7,16 +7,45 @@ import sys
 from pathlib import Path
 
 from rainbow_energy_client import ModbusReader, load_packaged_profile
-from rainbow_energy_client.profiles import ProfileError, load_profile
+from rainbow_energy_client.device import RegisterReader
+from rainbow_energy_client.profiles import DeviceProfile, ProfileError, load_profile
 
-from rainbow_energy_mqtt.config import ConfigError, load_config
-from rainbow_energy_mqtt.mqtt import connect_mqtt_client
+from rainbow_energy_mqtt.config import ConfigError, ServiceConfig, load_config
+from rainbow_energy_mqtt.mqtt import MqttClient, connect_mqtt_client
 from rainbow_energy_mqtt.publisher import MeasurementPublisher
 from rainbow_energy_mqtt.service import run_service
 
 
 def main(argv: list[str] | None = None) -> int:
     """Load --config, open Modbus, and run the poll loop until interrupted."""
+    config_path = _parse_args(argv)
+
+    try:
+        config = load_config(config_path)
+    except (ConfigError, OSError, KeyError, TypeError, ValueError) as error:
+        return _fail("config error", error)
+
+    try:
+        profile = _load_profile(config)
+    except (OSError, ProfileError) as error:
+        return _fail("profile error", error)
+
+    reader = _open_modbus_reader(config)
+
+    try:
+        mqtt_client = _connect_mqtt(config)
+    except OSError as error:
+        return _fail("mqtt error", error)
+
+    publisher = _build_publisher(config, mqtt_client)
+    try:
+        return _run_with_modbus(config, profile, reader, publisher)
+    finally:
+        mqtt_client.close()
+
+
+def _parse_args(argv: list[str] | None) -> Path:
+    """Parse CLI arguments and return the config path."""
     parser = argparse.ArgumentParser(prog="rainbow-energy-mqtt")
     parser.add_argument(
         "--config",
@@ -25,46 +54,53 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to the service YAML config file",
     )
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+    return args.config
 
-    try:
-        config = load_config(args.config)
-    except (ConfigError, OSError, KeyError, TypeError, ValueError) as error:
-        print(f"config error: {error}", file=sys.stderr)
-        return 2
 
-    try:
-        if config.profile_path is not None:
-            profile = load_profile(config.profile_path)
-        else:
-            profile = load_packaged_profile(config.profile)
-    except (OSError, ProfileError) as error:
-        print(f"profile error: {error}", file=sys.stderr)
-        return 2
+def _fail(prefix: str, error: BaseException) -> int:
+    """Print a prefixed error to stderr and return exit code 2."""
+    print(f"{prefix}: {error}", file=sys.stderr)
+    return 2
 
+
+def _load_profile(config: ServiceConfig) -> DeviceProfile:
+    """Load the configured packaged or filesystem profile."""
+    if config.profile_path is not None:
+        return load_profile(config.profile_path)
+    return load_packaged_profile(config.profile)
+
+
+def _open_modbus_reader(config: ServiceConfig) -> RegisterReader:
+    """Build a Modbus TCP or serial reader from config."""
     if config.modbus.tcp is not None:
-        reader = ModbusReader.tcp(
+        return ModbusReader.tcp(
             host=config.modbus.tcp.host,
             port=config.modbus.tcp.port,
             device_id=config.modbus.device_id,
         )
-    else:
-        assert config.modbus.usb is not None
-        reader = ModbusReader.serial(
-            port=config.modbus.usb.port,
-            device_id=config.modbus.device_id,
-        )
+    assert config.modbus.usb is not None
+    return ModbusReader.serial(
+        port=config.modbus.usb.port,
+        device_id=config.modbus.device_id,
+    )
 
-    try:
-        mqtt_client = connect_mqtt_client(
-            host=config.mqtt.host,
-            port=config.mqtt.port,
-            username=config.mqtt.username,
-            password=config.mqtt.password,
-        )
-    except OSError as error:
-        print(f"mqtt error: {error}", file=sys.stderr)
-        return 2
-    publisher = MeasurementPublisher(
+
+def _connect_mqtt(config: ServiceConfig) -> MqttClient:
+    """Connect to the configured MQTT broker."""
+    return connect_mqtt_client(
+        host=config.mqtt.host,
+        port=config.mqtt.port,
+        username=config.mqtt.username,
+        password=config.mqtt.password,
+    )
+
+
+def _build_publisher(
+    config: ServiceConfig,
+    mqtt_client: MqttClient,
+) -> MeasurementPublisher:
+    """Create a measurement publisher from MQTT settings."""
+    return MeasurementPublisher(
         client=mqtt_client,
         topic_prefix=config.mqtt.topic_prefix,
         retain=config.mqtt.retain,
@@ -72,6 +108,15 @@ def main(argv: list[str] | None = None) -> int:
         discovery_prefix=config.mqtt.discovery_prefix,
         ha_discovery=config.mqtt.ha_discovery,
     )
+
+
+def _run_with_modbus(
+    config: ServiceConfig,
+    profile: DeviceProfile,
+    reader: RegisterReader,
+    publisher: MeasurementPublisher,
+) -> int:
+    """Open Modbus and run the service loop; return a process exit code."""
     try:
         with reader:
             run_service(
@@ -84,10 +129,7 @@ def main(argv: list[str] | None = None) -> int:
                 publisher=publisher,
             )
     except OSError as error:
-        print(f"modbus error: {error}", file=sys.stderr)
-        return 2
-    finally:
-        mqtt_client.close()
+        return _fail("modbus error", error)
     return 0
 
 

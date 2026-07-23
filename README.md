@@ -4,12 +4,6 @@ Long-running service that polls an inverter with
 [`rainbow-energy-client`](https://github.com/rainbow-solar/rainbow-energy-client)
 and publishes measurements to MQTT (for Home Assistant and other subscribers).
 
-## Install
-
-```bash
-make sync
-```
-
 ## Usage
 
 ```bash
@@ -34,11 +28,16 @@ true, retained Home Assistant MQTT sensor discovery configs are published
 once at startup (requires `device_id`). The MQTT client reconnects
 automatically if the broker connection drops while the service is running.
 
-Docker:
+All Make targets run through Docker:
 
 ```bash
-make build
-docker run --rm -v "$PWD/config.yaml:/config/config.yaml:ro" rainbow-energy-mqtt
+make build   # production image
+make run     # build + run with ./config.yaml mounted
+make shell   # production shell with config mounted
+make sync    # development image (locked deps)
+make lint    # Ruff in the development image
+make test    # pytest in the development image
+make check   # lint + test
 ```
 
 ## Development

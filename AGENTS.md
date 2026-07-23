@@ -12,8 +12,9 @@
   (`MeasurementPublisher`); use fakes in unit tests, not a live broker.
 - Python dependencies and locking are managed with `uv`. The client package
   is pulled from git (see `[tool.uv.sources]` in `pyproject.toml`).
-- Lint and tests run locally through the `Makefile`. `make build` produces
-  the Alpine runtime image for the service.
+- Lint, tests, and the service all run through Docker via the `Makefile`.
+  `make sync` / `make lint` / `make test` use the development image;
+  `make build` / `make run` use the Alpine production image.
 
 ## Development process
 
@@ -59,10 +60,11 @@
 
 ## Commands
 
-- `make sync` — synchronize locked dependencies.
-- `make lint` — run Ruff.
-- `make test` — run the test suite.
+- `make sync` — build the development Docker image (locked deps).
+- `make lint` — run Ruff in the development image.
+- `make test` — run the test suite in the development image.
 - `make check` — run lint and tests.
-- `make build` — build the service Docker image.
-- `make run` — run the service locally with `config.yaml`.
+- `make build` — build the production Docker image.
+- `make run` — build and run the service with `config.yaml`.
+- `make shell` — open a shell in the production image with `config.yaml`.
 - `make help` — list available targets.

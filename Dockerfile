@@ -1,10 +1,13 @@
 # syntax=docker/dockerfile:1
 
-# Build:
+# Build production:
 #   docker build -t rainbow-energy-mqtt .
 #
+# Build development (lint/tests):
+#   docker build --target development -t rainbow-energy-mqtt-dev .
+#
 # Run (mount a config file):
-#   docker run --rm -v "$PWD/config.yaml:/config/config.yaml:ro" \
+#   docker run --rm -v "$PWD/config.yaml:/app/config.yaml:ro" \
 #     rainbow-energy-mqtt
 
 ARG PYTHON_VERSION=3.12
@@ -30,6 +33,12 @@ RUN uv sync --locked --no-dev --no-install-project
 
 COPY . .
 RUN uv sync --locked --no-dev --no-editable
+
+FROM build AS development
+
+RUN uv sync --locked --no-editable
+
+CMD ["uv", "run", "--locked", "pytest"]
 
 FROM python:${PYTHON_VERSION}-alpine AS production
 

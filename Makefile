@@ -1,37 +1,43 @@
-.PHONY: help sync test lint check build run
+.PHONY: help sync lint test check build run shell
 
 IMAGE ?= rainbow-energy-mqtt
+DEV_IMAGE ?= rainbow-energy-mqtt-dev
 CONFIG ?= config.yaml
 
 help:
 	@printf '%s\n' \
-		"make sync   Install locked dependencies" \
-		"make lint   Run Ruff checks" \
-		"make test   Run the test suite" \
+		"make sync   Build the development Docker image (locked deps)" \
+		"make lint   Run Ruff in the development image" \
+		"make test   Run tests in the development image" \
 		"make check  Run lint and tests" \
-		"make build  Build the service Docker image" \
-		"make run    Run the service with $(CONFIG) (local)"
+		"make build  Build the production Docker image" \
+		"make run    Run the service with $(CONFIG)" \
+		"make shell  Open a shell in the production image with $(CONFIG)"
 
-sync:
-	uv sync
+sync: build-dev
 
-lint:
-	uv run --locked ruff check .
+build-dev:
+	docker build --target development -t $(DEV_IMAGE) .
 
-test:
-	uv run --locked pytest
+lint: build-dev
+	docker run --rm $(DEV_IMAGE) uv run --locked ruff check .
+
+test: build-dev
+	docker run --rm $(DEV_IMAGE)
 
 check: lint test
 
 build:
-	docker build -t $(IMAGE) .
+	docker build --target production -t $(IMAGE) .
 
-shell:
-	docker run --rm -it $(IMAGE) /bin/sh
+shell: build
+	@test -f "$(CONFIG)" || (echo "Missing $(CONFIG); copy config.yaml.example and edit it" >&2; exit 2)
+	docker run --rm -it \
+		-v "$(PWD)/$(CONFIG):/app/config.yaml:ro" \
+		$(IMAGE) /bin/sh
 
-run:
+run: build
 	@test -f "$(CONFIG)" || (echo "Missing $(CONFIG); copy config.yaml.example and edit it" >&2; exit 2)
 	docker run --rm \
 		-v "$(PWD)/$(CONFIG):/app/config.yaml:ro" \
-		rainbow-energy-mqtt
-
+		$(IMAGE)

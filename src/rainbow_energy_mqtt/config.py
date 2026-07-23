@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -43,34 +44,43 @@ class ServiceConfig:
 def load_config(path: Path) -> ServiceConfig:
     """Load service settings from a YAML config file."""
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    root = _require_mapping(raw, "config")
 
-    profile = raw.get("profile")
-    profile_path = raw.get("profile_path")
+    profile = root.get("profile")
+    profile_path = root.get("profile_path")
     if (profile is None) == (profile_path is None):
         raise ConfigError("set exactly one of profile or profile_path")
 
-    modbus = raw["modbus"]
+    modbus = _require_mapping(root.get("modbus"), "modbus")
     tcp = modbus.get("tcp")
     usb = modbus.get("usb")
     if (tcp is None) == (usb is None):
         raise ConfigError("set exactly one of modbus.tcp or modbus.usb")
+    if tcp is not None:
+        tcp = _require_mapping(tcp, "modbus.tcp")
+    if usb is not None:
+        usb = _require_mapping(usb, "modbus.usb")
 
-    mqtt = raw["mqtt"]
-    keys, all_keys = _parse_keys(raw.get("keys"))
+    mqtt = _require_mapping(root.get("mqtt"), "mqtt")
+    keys, all_keys = _parse_keys(root.get("keys"))
 
     return ServiceConfig(
-        interval=float(raw["interval"]),
+        interval=float(_require(root, "interval", "interval")),
         keys=keys,
         all_keys=all_keys,
         profile=profile,
         profile_path=Path(profile_path) if profile_path is not None else None,
         modbus_device_id=int(modbus.get("device_id", 1)),
-        modbus_tcp_host=tcp.get("host") if tcp is not None else None,
+        modbus_tcp_host=(
+            str(_require(tcp, "host", "modbus.tcp.host")) if tcp is not None else None
+        ),
         modbus_tcp_port=int(tcp.get("port", 502)) if tcp is not None else 502,
-        modbus_usb_port=usb.get("port") if usb is not None else None,
-        mqtt_host=str(mqtt["host"]),
+        modbus_usb_port=(
+            str(_require(usb, "port", "modbus.usb.port")) if usb is not None else None
+        ),
+        mqtt_host=str(_require(mqtt, "host", "mqtt.host")),
         mqtt_port=int(mqtt.get("port", 1883)),
-        mqtt_topic_prefix=str(mqtt["topic_prefix"]),
+        mqtt_topic_prefix=str(_require(mqtt, "topic_prefix", "mqtt.topic_prefix")),
         mqtt_username=_optional_secret("MQTT_USERNAME", mqtt.get("username")),
         mqtt_password=_optional_secret("MQTT_PASSWORD", mqtt.get("password")),
         mqtt_retain=bool(mqtt.get("retain", True)),
@@ -79,8 +89,24 @@ def load_config(path: Path) -> ServiceConfig:
         ),
         mqtt_ha_discovery=bool(mqtt.get("ha_discovery", False)),
         mqtt_discovery_prefix=str(mqtt.get("discovery_prefix", "homeassistant")),
-        log_level=str(raw.get("log_level", DEFAULT_LOG_LEVEL)).upper(),
+        log_level=str(root.get("log_level", DEFAULT_LOG_LEVEL)).upper(),
     )
+
+
+def _require_mapping(value: object, path: str) -> dict[str, Any]:
+    """Return *value* as a mapping or raise ConfigError."""
+    if value is None:
+        raise ConfigError(f"missing {path}")
+    if not isinstance(value, dict):
+        raise ConfigError(f"{path} must be a mapping")
+    return value
+
+
+def _require(mapping: dict[str, Any], key: str, path: str) -> object:
+    """Return mapping[key] or raise ConfigError when missing/null."""
+    if key not in mapping or mapping[key] is None:
+        raise ConfigError(f"missing {path}")
+    return mapping[key]
 
 
 def _parse_keys(raw_keys: object) -> tuple[tuple[str, ...], bool]:

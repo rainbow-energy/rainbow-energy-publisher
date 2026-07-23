@@ -206,3 +206,80 @@ mqtt:
 
     with pytest.raises(ConfigError, match="modbus.tcp or modbus.usb"):
         load_config(path)
+
+
+def test_load_config_rejects_missing_mqtt_section(tmp_path: Path):
+    """Report a clear error when the mqtt mapping is omitted."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: 5.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+""",
+    )
+
+    with pytest.raises(ConfigError, match="missing mqtt"):
+        load_config(path)
+
+
+def test_load_config_rejects_missing_interval(tmp_path: Path):
+    """Report a clear error when interval is omitted."""
+    path = _write_config(
+        tmp_path,
+        """
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
+""",
+    )
+
+    with pytest.raises(ConfigError, match="missing interval"):
+        load_config(path)
+
+
+def test_load_config_rejects_missing_mqtt_host(tmp_path: Path):
+    """Report a clear error when mqtt.host is omitted."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: 5.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  topic_prefix: rainbow/energy
+""",
+    )
+
+    with pytest.raises(ConfigError, match="missing mqtt.host"):
+        load_config(path)
+
+
+def test_load_config_rejects_non_mapping_mqtt(tmp_path: Path):
+    """Report a clear error when mqtt is not a mapping."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: 5.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt: mqtt.example
+""",
+    )
+
+    with pytest.raises(ConfigError, match="mqtt must be a mapping"):
+        load_config(path)

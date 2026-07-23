@@ -11,6 +11,8 @@ keys:
   - pv_power
   - load_power
   - grid_power
+# Or poll every readable register from the profile (quote required in YAML):
+# keys: "*"
 
 modbus:
   device_id: 1

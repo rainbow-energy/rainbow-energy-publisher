@@ -68,6 +68,65 @@ def test_run_service_fetches_measurements_each_tick(caplog):
     assert "battery_soc=85.0 %" in caplog.text
 
 
+def test_run_service_expands_all_keys_to_readable_registers(caplog):
+    """When all_keys is set, poll every access=read register from the profile."""
+    profile = DeviceProfile(
+        manufacturer="Example",
+        model="8K",
+        registers=(
+            RegisterDefinition(
+                key="battery_soc",
+                name="Battery SOC",
+                address=184,
+                function="holding",
+                data_type="uint16",
+                scale=1.0,
+                unit="%",
+                access="read",
+                count=1,
+            ),
+            RegisterDefinition(
+                key="grid_power",
+                name="Grid Power",
+                address=185,
+                function="holding",
+                data_type="int16",
+                scale=1.0,
+                unit="W",
+                access="read",
+                count=1,
+            ),
+            RegisterDefinition(
+                key="export_limit",
+                name="Export Limit",
+                address=200,
+                function="holding",
+                data_type="uint16",
+                scale=1.0,
+                unit="W",
+                access="write",
+                count=1,
+            ),
+        ),
+    )
+    reader = FakeReader(values=(85, 85))
+
+    with caplog.at_level(logging.INFO):
+        run_service(
+            reader=reader,
+            profile=profile,
+            keys=(),
+            all_keys=True,
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+        )
+
+    assert "battery_soc=85.0 %" in caplog.text
+    assert "grid_power=" in caplog.text
+    assert "export_limit" not in caplog.text
+
+
 def test_run_service_publishes_measurements_each_tick():
     """Hand each successful poll to the measurement publisher."""
     published: list[tuple[str, str]] = []
@@ -371,6 +430,7 @@ def test_main_runs_service_from_config(monkeypatch):
     )
     assert ran["interval"] == 5.0
     assert ran["log_level"] == "INFO"
+    assert ran["all_keys"] is False
     assert ran["profile"].model == "SYNK-8K-SG05LP1"
     assert ran["publisher"] is not None
     assert ran["publisher"]._retain is True

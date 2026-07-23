@@ -77,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
                 reader=reader,
                 profile=profile,
                 keys=config.keys,
+                all_keys=config.all_keys,
                 interval=config.interval,
                 log_level=config.log_level,
                 publisher=publisher,

@@ -40,9 +40,17 @@ def run_service(
     iterations: int | None = None,
     log_level: str = DEFAULT_LOG_LEVEL,
     publisher: MeasurementPublisher | None = None,
+    all_keys: bool = False,
 ) -> None:
     """Poll measurements until interrupted or iterations complete."""
     configure_logging(log_level)
+
+    if all_keys:
+        keys = tuple(
+            register.key
+            for register in profile.registers
+            if register.access == "read"
+        )
 
     known_keys = {register.key for register in profile.registers}
     unknown_keys = [key for key in keys if key not in known_keys]

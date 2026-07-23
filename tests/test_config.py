@@ -70,6 +70,50 @@ def test_load_config_defaults_log_level_when_omitted():
     assert load_config(_EXAMPLE_CONFIG).log_level == "INFO"
 
 
+def test_load_config_accepts_keys_star_for_all_readable_registers(tmp_path: Path):
+    """Treat keys: "*" as poll-all; leave keys empty until profile expansion."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: 5.0
+profile: sunsynk_8k_sg05lp1
+keys: "*"
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
+""",
+    )
+
+    config = load_config(path)
+
+    assert config.all_keys is True
+    assert config.keys == ()
+
+
+def test_load_config_rejects_invalid_keys_shape(tmp_path: Path):
+    """Reject keys that are neither a list nor the "*" sentinel."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: 5.0
+profile: sunsynk_8k_sg05lp1
+keys: all
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
+""",
+    )
+
+    with pytest.raises(ConfigError, match=r'keys must be a list of names or "\*"'):
+        load_config(path)
+
+
 def test_load_config_prefers_mqtt_auth_env_overrides(tmp_path: Path, monkeypatch):
     """Prefer MQTT_USERNAME and MQTT_PASSWORD over YAML auth fields."""
     path = _write_config(

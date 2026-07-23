@@ -21,6 +21,7 @@ class ServiceConfig:
 
     interval: float
     keys: tuple[str, ...]
+    all_keys: bool
     profile: str | None
     profile_path: Path | None
     modbus_device_id: int
@@ -55,10 +56,12 @@ def load_config(path: Path) -> ServiceConfig:
         raise ConfigError("set exactly one of modbus.tcp or modbus.usb")
 
     mqtt = raw["mqtt"]
+    keys, all_keys = _parse_keys(raw.get("keys"))
 
     return ServiceConfig(
         interval=float(raw["interval"]),
-        keys=tuple(raw["keys"]),
+        keys=keys,
+        all_keys=all_keys,
         profile=profile,
         profile_path=Path(profile_path) if profile_path is not None else None,
         modbus_device_id=int(modbus.get("device_id", 1)),
@@ -78,6 +81,15 @@ def load_config(path: Path) -> ServiceConfig:
         mqtt_discovery_prefix=str(mqtt.get("discovery_prefix", "homeassistant")),
         log_level=str(raw.get("log_level", DEFAULT_LOG_LEVEL)).upper(),
     )
+
+
+def _parse_keys(raw_keys: object) -> tuple[tuple[str, ...], bool]:
+    """Return keys and whether to expand to all readable profile registers."""
+    if raw_keys == "*":
+        return (), True
+    if isinstance(raw_keys, list):
+        return tuple(raw_keys), False
+    raise ConfigError('keys must be a list of names or "*"')
 
 
 def _optional_secret(env_name: str, yaml_value: object) -> str | None:

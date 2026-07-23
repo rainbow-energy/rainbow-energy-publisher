@@ -26,6 +26,12 @@ check: lint test
 build:
 	docker build -t $(IMAGE) .
 
+shell:
+	docker run --rm -it $(IMAGE) /bin/sh
+
 run:
 	@test -f "$(CONFIG)" || (echo "Missing $(CONFIG); copy config.yaml.example and edit it" >&2; exit 2)
-	uv run --locked rainbow-energy-mqtt --config "$(CONFIG)"
+	docker run --rm \
+		-v "$(PWD)/$(CONFIG):/app/config.yaml:ro" \
+		rainbow-energy-mqtt
+

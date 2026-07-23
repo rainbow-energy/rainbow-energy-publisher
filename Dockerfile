@@ -45,4 +45,4 @@ COPY --from=build /opt/venv /opt/venv
 
 USER energy
 
-CMD ["rainbow-energy-mqtt", "--config", "/config/config.yaml"]
+CMD ["rainbow-energy-mqtt", "--config", "/app/config.yaml"]

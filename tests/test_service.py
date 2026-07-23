@@ -211,6 +211,43 @@ def test_run_service_warns_when_discovery_enabled_without_device_id(caplog):
     assert not any(topic.endswith("/config") for topic, _payload, _retain in published)
 
 
+def test_run_service_warns_once_for_unknown_keys(caplog):
+    """Warn for keys missing from the profile and still poll known keys."""
+    reader = FakeReader(values=(85,))
+
+    with caplog.at_level(logging.WARNING):
+        run_service(
+            reader=reader,
+            profile=_profile(),
+            keys=("battery_soc", "not_a_real_key"),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+        )
+
+    assert "not_a_real_key" in caplog.text
+    assert "unknown key" in caplog.text
+    assert reader.reads == 1
+
+
+def test_run_service_stops_when_all_keys_are_unknown(caplog):
+    """Stop without polling when every configured key is missing from the profile."""
+    reader = FakeReader(values=(85,))
+
+    with caplog.at_level(logging.ERROR):
+        run_service(
+            reader=reader,
+            profile=_profile(),
+            keys=("not_a_real_key",),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+        )
+
+    assert "no known keys" in caplog.text
+    assert reader.reads == 0
+
+
 def test_run_service_stops_on_interrupt():
     """Stop cleanly when a tick sleep raises KeyboardInterrupt."""
     ticks: list[float] = []

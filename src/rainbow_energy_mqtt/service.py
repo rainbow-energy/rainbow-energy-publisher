@@ -43,6 +43,16 @@ def run_service(
 ) -> None:
     """Poll measurements until interrupted or iterations complete."""
     configure_logging(log_level)
+
+    known_keys = {register.key for register in profile.registers}
+    unknown_keys = [key for key in keys if key not in known_keys]
+    for key in unknown_keys:
+        logger.warning("unknown key %r; not in profile, skipping", key)
+    keys = tuple(key for key in keys if key in known_keys)
+    if not keys:
+        logger.error("no known keys left to poll; check config keys against profile")
+        return
+
     client = Client(reader, profile, keys=keys)
 
     if publisher is not None and publisher.ha_discovery:

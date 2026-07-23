@@ -17,6 +17,45 @@ class ConfigError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class ModbusTcpConfig:
+    """Modbus TCP gateway settings."""
+
+    host: str
+    port: int
+
+
+@dataclass(frozen=True, slots=True)
+class ModbusUsbConfig:
+    """Modbus RTU serial port settings."""
+
+    port: str
+
+
+@dataclass(frozen=True, slots=True)
+class ModbusConfig:
+    """Modbus transport settings (exactly one of tcp or usb)."""
+
+    device_id: int
+    tcp: ModbusTcpConfig | None
+    usb: ModbusUsbConfig | None
+
+
+@dataclass(frozen=True, slots=True)
+class MqttConfig:
+    """MQTT broker and publish settings."""
+
+    host: str
+    port: int
+    topic_prefix: str
+    username: str | None
+    password: str | None
+    retain: bool
+    device_id: str | None
+    ha_discovery: bool
+    discovery_prefix: str
+
+
+@dataclass(frozen=True, slots=True)
 class ServiceConfig:
     """Settings for the long-running Modbus poll service."""
 
@@ -25,19 +64,8 @@ class ServiceConfig:
     all_keys: bool
     profile: str | None
     profile_path: Path | None
-    modbus_device_id: int
-    modbus_tcp_host: str | None
-    modbus_tcp_port: int
-    modbus_usb_port: str | None
-    mqtt_host: str
-    mqtt_port: int
-    mqtt_topic_prefix: str
-    mqtt_username: str | None
-    mqtt_password: str | None
-    mqtt_retain: bool
-    mqtt_device_id: str | None
-    mqtt_ha_discovery: bool
-    mqtt_discovery_prefix: str
+    modbus: ModbusConfig
+    mqtt: MqttConfig
     log_level: str
 
 
@@ -51,17 +79,6 @@ def load_config(path: Path) -> ServiceConfig:
     if (profile is None) == (profile_path is None):
         raise ConfigError("set exactly one of profile or profile_path")
 
-    modbus = _require_mapping(root.get("modbus"), "modbus")
-    tcp = modbus.get("tcp")
-    usb = modbus.get("usb")
-    if (tcp is None) == (usb is None):
-        raise ConfigError("set exactly one of modbus.tcp or modbus.usb")
-    if tcp is not None:
-        tcp = _require_mapping(tcp, "modbus.tcp")
-    if usb is not None:
-        usb = _require_mapping(usb, "modbus.usb")
-
-    mqtt = _require_mapping(root.get("mqtt"), "mqtt")
     keys, all_keys = _parse_keys(root.get("keys"))
 
     return ServiceConfig(
@@ -70,26 +87,56 @@ def load_config(path: Path) -> ServiceConfig:
         all_keys=all_keys,
         profile=profile,
         profile_path=Path(profile_path) if profile_path is not None else None,
-        modbus_device_id=int(modbus.get("device_id", 1)),
-        modbus_tcp_host=(
-            str(_require(tcp, "host", "modbus.tcp.host")) if tcp is not None else None
-        ),
-        modbus_tcp_port=int(tcp.get("port", 502)) if tcp is not None else 502,
-        modbus_usb_port=(
-            str(_require(usb, "port", "modbus.usb.port")) if usb is not None else None
-        ),
-        mqtt_host=str(_require(mqtt, "host", "mqtt.host")),
-        mqtt_port=int(mqtt.get("port", 1883)),
-        mqtt_topic_prefix=str(_require(mqtt, "topic_prefix", "mqtt.topic_prefix")),
-        mqtt_username=_optional_secret("MQTT_USERNAME", mqtt.get("username")),
-        mqtt_password=_optional_secret("MQTT_PASSWORD", mqtt.get("password")),
-        mqtt_retain=bool(mqtt.get("retain", True)),
-        mqtt_device_id=(
+        modbus=_load_modbus(root.get("modbus")),
+        mqtt=_load_mqtt(root.get("mqtt")),
+        log_level=str(root.get("log_level", DEFAULT_LOG_LEVEL)).upper(),
+    )
+
+
+def _load_modbus(raw: object) -> ModbusConfig:
+    """Parse the modbus section into ModbusConfig."""
+    modbus = _require_mapping(raw, "modbus")
+    tcp_raw = modbus.get("tcp")
+    usb_raw = modbus.get("usb")
+    if (tcp_raw is None) == (usb_raw is None):
+        raise ConfigError("set exactly one of modbus.tcp or modbus.usb")
+
+    tcp: ModbusTcpConfig | None = None
+    usb: ModbusUsbConfig | None = None
+    if tcp_raw is not None:
+        tcp_mapping = _require_mapping(tcp_raw, "modbus.tcp")
+        tcp = ModbusTcpConfig(
+            host=str(_require(tcp_mapping, "host", "modbus.tcp.host")),
+            port=int(tcp_mapping.get("port", 502)),
+        )
+    if usb_raw is not None:
+        usb_mapping = _require_mapping(usb_raw, "modbus.usb")
+        usb = ModbusUsbConfig(
+            port=str(_require(usb_mapping, "port", "modbus.usb.port")),
+        )
+
+    return ModbusConfig(
+        device_id=int(modbus.get("device_id", 1)),
+        tcp=tcp,
+        usb=usb,
+    )
+
+
+def _load_mqtt(raw: object) -> MqttConfig:
+    """Parse the mqtt section into MqttConfig."""
+    mqtt = _require_mapping(raw, "mqtt")
+    return MqttConfig(
+        host=str(_require(mqtt, "host", "mqtt.host")),
+        port=int(mqtt.get("port", 1883)),
+        topic_prefix=str(_require(mqtt, "topic_prefix", "mqtt.topic_prefix")),
+        username=_optional_secret("MQTT_USERNAME", mqtt.get("username")),
+        password=_optional_secret("MQTT_PASSWORD", mqtt.get("password")),
+        retain=bool(mqtt.get("retain", True)),
+        device_id=(
             None if mqtt.get("device_id") is None else str(mqtt.get("device_id"))
         ),
-        mqtt_ha_discovery=bool(mqtt.get("ha_discovery", False)),
-        mqtt_discovery_prefix=str(mqtt.get("discovery_prefix", "homeassistant")),
-        log_level=str(root.get("log_level", DEFAULT_LOG_LEVEL)).upper(),
+        ha_discovery=bool(mqtt.get("ha_discovery", False)),
+        discovery_prefix=str(mqtt.get("discovery_prefix", "homeassistant")),
     )
 
 

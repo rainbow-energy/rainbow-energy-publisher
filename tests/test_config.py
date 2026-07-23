@@ -19,21 +19,21 @@ def test_load_config_reads_mqtt_broker_settings():
     """Load MQTT host and topic prefix; default the broker port to 1883."""
     config = load_config(_EXAMPLE_CONFIG)
 
-    assert config.mqtt_host == "mqtt.example"
-    assert config.mqtt_port == 1883
-    assert config.mqtt_topic_prefix == "rainbow/energy"
-    assert config.mqtt_username is None
-    assert config.mqtt_password is None
+    assert config.mqtt.host == "mqtt.example"
+    assert config.mqtt.port == 1883
+    assert config.mqtt.topic_prefix == "rainbow/energy"
+    assert config.mqtt.username is None
+    assert config.mqtt.password is None
 
 
 def test_load_config_defaults_mqtt_publish_options_when_omitted():
     """Default retain, discovery, and related MQTT options when left out."""
     config = load_config(_EXAMPLE_CONFIG)
 
-    assert config.mqtt_retain is True
-    assert config.mqtt_device_id is None
-    assert config.mqtt_ha_discovery is False
-    assert config.mqtt_discovery_prefix == "homeassistant"
+    assert config.mqtt.retain is True
+    assert config.mqtt.device_id is None
+    assert config.mqtt.ha_discovery is False
+    assert config.mqtt.discovery_prefix == "homeassistant"
 
 
 def test_load_config_reads_mqtt_publish_options_from_yaml(tmp_path: Path):
@@ -59,10 +59,10 @@ mqtt:
 
     config = load_config(path)
 
-    assert config.mqtt_retain is False
-    assert config.mqtt_device_id == "inverter-1"
-    assert config.mqtt_ha_discovery is True
-    assert config.mqtt_discovery_prefix == "ha"
+    assert config.mqtt.retain is False
+    assert config.mqtt.device_id == "inverter-1"
+    assert config.mqtt.ha_discovery is True
+    assert config.mqtt.discovery_prefix == "ha"
 
 
 def test_load_config_defaults_log_level_when_omitted():
@@ -137,8 +137,8 @@ mqtt:
 
     config = load_config(path)
 
-    assert config.mqtt_username == "from-env"
-    assert config.mqtt_password == "env-secret"
+    assert config.mqtt.username == "from-env"
+    assert config.mqtt.password == "env-secret"
 
 
 def test_load_config_reads_mqtt_auth_from_yaml(tmp_path: Path, monkeypatch):
@@ -164,8 +164,8 @@ mqtt:
 
     config = load_config(path)
 
-    assert config.mqtt_username == "from-yaml"
-    assert config.mqtt_password == "yaml-secret"
+    assert config.mqtt.username == "from-yaml"
+    assert config.mqtt.password == "yaml-secret"
 
 
 def test_load_config_rejects_missing_profile_choice(tmp_path: Path):

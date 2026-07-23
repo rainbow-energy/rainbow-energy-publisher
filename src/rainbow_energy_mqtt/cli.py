@@ -41,35 +41,36 @@ def main(argv: list[str] | None = None) -> int:
         print(f"profile error: {error}", file=sys.stderr)
         return 2
 
-    if config.modbus_tcp_host is not None:
+    if config.modbus.tcp is not None:
         reader = ModbusReader.tcp(
-            host=config.modbus_tcp_host,
-            port=config.modbus_tcp_port,
-            device_id=config.modbus_device_id,
+            host=config.modbus.tcp.host,
+            port=config.modbus.tcp.port,
+            device_id=config.modbus.device_id,
         )
     else:
+        assert config.modbus.usb is not None
         reader = ModbusReader.serial(
-            port=config.modbus_usb_port,
-            device_id=config.modbus_device_id,
+            port=config.modbus.usb.port,
+            device_id=config.modbus.device_id,
         )
 
     try:
         mqtt_client = connect_mqtt_client(
-            host=config.mqtt_host,
-            port=config.mqtt_port,
-            username=config.mqtt_username,
-            password=config.mqtt_password,
+            host=config.mqtt.host,
+            port=config.mqtt.port,
+            username=config.mqtt.username,
+            password=config.mqtt.password,
         )
     except OSError as error:
         print(f"mqtt error: {error}", file=sys.stderr)
         return 2
     publisher = MeasurementPublisher(
         client=mqtt_client,
-        topic_prefix=config.mqtt_topic_prefix,
-        retain=config.mqtt_retain,
-        device_id=config.mqtt_device_id,
-        discovery_prefix=config.mqtt_discovery_prefix,
-        ha_discovery=config.mqtt_ha_discovery,
+        topic_prefix=config.mqtt.topic_prefix,
+        retain=config.mqtt.retain,
+        device_id=config.mqtt.device_id,
+        discovery_prefix=config.mqtt.discovery_prefix,
+        ha_discovery=config.mqtt.ha_discovery,
     )
     try:
         with reader:

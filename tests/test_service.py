@@ -184,6 +184,33 @@ def test_run_service_continues_when_discovery_publish_fails(caplog):
     assert "discovery publish failed" in caplog.text
 
 
+def test_run_service_warns_when_discovery_enabled_without_device_id(caplog):
+    """Warn when ha_discovery is enabled but device_id is missing."""
+    published: list[tuple[str, str, bool]] = []
+
+    class FakeMqtt:
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
+            published.append((topic, payload, retain))
+
+    with caplog.at_level(logging.WARNING):
+        run_service(
+            reader=FakeReader(values=(85,)),
+            profile=_profile(),
+            keys=("battery_soc",),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+            publisher=MeasurementPublisher(
+                client=FakeMqtt(),
+                topic_prefix="rainbow/energy",
+                ha_discovery=True,
+            ),
+        )
+
+    assert "device_id" in caplog.text
+    assert not any(topic.endswith("/config") for topic, _payload, _retain in published)
+
+
 def test_run_service_stops_on_interrupt():
     """Stop cleanly when a tick sleep raises KeyboardInterrupt."""
     ticks: list[float] = []

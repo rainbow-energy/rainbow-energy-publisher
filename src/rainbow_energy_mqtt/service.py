@@ -46,25 +46,31 @@ def run_service(
     client = Client(reader, profile, keys=keys)
 
     if publisher is not None and publisher.ha_discovery:
-        registers = {register.key: register for register in profile.registers}
-        discovery_measurements = tuple(
-            Measurement(
-                key=key,
-                name=registers[key].name,
-                value=0,
-                unit=registers[key].unit,
+        if publisher.device_id is None:
+            logger.warning(
+                "ha_discovery is enabled but mqtt.device_id is unset; "
+                "skipping Home Assistant discovery"
             )
-            for key in keys
-            if key in registers
-        )
-        try:
-            publisher.publish_discovery(
-                discovery_measurements,
-                manufacturer=profile.manufacturer,
-                model=profile.model,
+        else:
+            registers = {register.key: register for register in profile.registers}
+            discovery_measurements = tuple(
+                Measurement(
+                    key=key,
+                    name=registers[key].name,
+                    value=0,
+                    unit=registers[key].unit,
+                )
+                for key in keys
+                if key in registers
             )
-        except OSError as error:
-            logger.error("discovery publish failed: %s", error, exc_info=error)
+            try:
+                publisher.publish_discovery(
+                    discovery_measurements,
+                    manufacturer=profile.manufacturer,
+                    model=profile.model,
+                )
+            except OSError as error:
+                logger.error("discovery publish failed: %s", error, exc_info=error)
 
     def on_error(error: ClientError) -> None:
         logger.error("poll failed: %s", error, exc_info=error)

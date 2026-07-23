@@ -36,6 +36,11 @@ class MeasurementPublisher:
         """Return whether Home Assistant discovery should be published at startup."""
         return self._ha_discovery
 
+    @property
+    def device_id(self) -> str | None:
+        """Return the stable MQTT / Home Assistant device identifier, if set."""
+        return self._device_id
+
     def publish(self, measurements: Sequence[Measurement]) -> None:
         """Publish each measurement value as a string payload on its state topic."""
         for measurement in measurements:

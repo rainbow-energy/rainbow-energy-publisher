@@ -22,7 +22,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config = load_config(config_path)
-    except (ConfigError, OSError, KeyError, TypeError, ValueError) as error:
+    except ConfigError as error:
         return _fail("config error", error)
 
     try:

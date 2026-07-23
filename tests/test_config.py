@@ -283,3 +283,62 @@ mqtt: mqtt.example
 
     with pytest.raises(ConfigError, match="mqtt must be a mapping"):
         load_config(path)
+
+
+def test_load_config_rejects_non_numeric_interval(tmp_path: Path):
+    """Report a clear error when interval cannot be parsed as a number."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: soon
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  topic_prefix: rainbow/energy
+""",
+    )
+
+    with pytest.raises(ConfigError, match="invalid interval"):
+        load_config(path)
+
+
+def test_load_config_rejects_non_numeric_mqtt_port(tmp_path: Path):
+    """Report a clear error when mqtt.port cannot be parsed as an integer."""
+    path = _write_config(
+        tmp_path,
+        """
+interval: 5.0
+profile: sunsynk_8k_sg05lp1
+keys: [battery_soc]
+modbus:
+  tcp:
+    host: modbus-gateway.example
+mqtt:
+  host: mqtt.example
+  port: open
+  topic_prefix: rainbow/energy
+""",
+    )
+
+    with pytest.raises(ConfigError, match="invalid mqtt.port"):
+        load_config(path)
+
+
+def test_load_config_rejects_invalid_yaml(tmp_path: Path):
+    """Report a clear error when the config file is not valid YAML."""
+    path = _write_config(tmp_path, "interval: [\n")
+
+    with pytest.raises(ConfigError, match="invalid YAML"):
+        load_config(path)
+
+
+def test_load_config_rejects_unreadable_file(tmp_path: Path):
+    """Report a clear error when the config file cannot be read."""
+    path = tmp_path / "missing.yaml"
+
+    with pytest.raises(ConfigError, match="cannot read config"):
+        load_config(path)

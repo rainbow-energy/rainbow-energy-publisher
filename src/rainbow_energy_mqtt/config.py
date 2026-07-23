@@ -71,7 +71,16 @@ class ServiceConfig:
 
 def load_config(path: Path) -> ServiceConfig:
     """Load service settings from a YAML config file."""
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ConfigError(f"cannot read config {path}: {error}") from error
+
+    try:
+        raw = yaml.safe_load(text)
+    except yaml.YAMLError as error:
+        raise ConfigError(f"invalid YAML: {error}") from error
+
     root = _require_mapping(raw, "config")
 
     profile = root.get("profile")
@@ -82,7 +91,7 @@ def load_config(path: Path) -> ServiceConfig:
     keys, all_keys = _parse_keys(root.get("keys"))
 
     return ServiceConfig(
-        interval=float(_require(root, "interval", "interval")),
+        interval=_as_float(_require(root, "interval", "interval"), "interval"),
         keys=keys,
         all_keys=all_keys,
         profile=profile,
@@ -107,7 +116,7 @@ def _load_modbus(raw: object) -> ModbusConfig:
         tcp_mapping = _require_mapping(tcp_raw, "modbus.tcp")
         tcp = ModbusTcpConfig(
             host=str(_require(tcp_mapping, "host", "modbus.tcp.host")),
-            port=int(tcp_mapping.get("port", 502)),
+            port=_as_int(tcp_mapping.get("port", 502), "modbus.tcp.port"),
         )
     if usb_raw is not None:
         usb_mapping = _require_mapping(usb_raw, "modbus.usb")
@@ -116,7 +125,7 @@ def _load_modbus(raw: object) -> ModbusConfig:
         )
 
     return ModbusConfig(
-        device_id=int(modbus.get("device_id", 1)),
+        device_id=_as_int(modbus.get("device_id", 1), "modbus.device_id"),
         tcp=tcp,
         usb=usb,
     )
@@ -127,7 +136,7 @@ def _load_mqtt(raw: object) -> MqttConfig:
     mqtt = _require_mapping(raw, "mqtt")
     return MqttConfig(
         host=str(_require(mqtt, "host", "mqtt.host")),
-        port=int(mqtt.get("port", 1883)),
+        port=_as_int(mqtt.get("port", 1883), "mqtt.port"),
         topic_prefix=str(_require(mqtt, "topic_prefix", "mqtt.topic_prefix")),
         username=_optional_secret("MQTT_USERNAME", mqtt.get("username")),
         password=_optional_secret("MQTT_PASSWORD", mqtt.get("password")),
@@ -154,6 +163,22 @@ def _require(mapping: dict[str, Any], key: str, path: str) -> object:
     if key not in mapping or mapping[key] is None:
         raise ConfigError(f"missing {path}")
     return mapping[key]
+
+
+def _as_float(value: object, path: str) -> float:
+    """Parse *value* as float or raise ConfigError."""
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as error:
+        raise ConfigError(f"invalid {path}: {value!r}") from error
+
+
+def _as_int(value: object, path: str) -> int:
+    """Parse *value* as int or raise ConfigError."""
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as error:
+        raise ConfigError(f"invalid {path}: {value!r}") from error
 
 
 def _parse_keys(raw_keys: object) -> tuple[tuple[str, ...], bool]:

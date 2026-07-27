@@ -10,10 +10,10 @@ from rainbow_energy_client import ModbusReader, load_packaged_profile
 from rainbow_energy_client.device import RegisterReader
 from rainbow_energy_client.profiles import DeviceProfile, ProfileError, load_profile
 
-from rainbow_energy_mqtt.config import ConfigError, ServiceConfig, load_config
-from rainbow_energy_mqtt.mqtt import MqttClient, connect_mqtt_client
-from rainbow_energy_mqtt.publisher import MeasurementPublisher
-from rainbow_energy_mqtt.service import run_service
+from rainbow_energy_publisher.config import ConfigError, ServiceConfig, load_config
+from rainbow_energy_publisher.mqtt import MqttClient, connect_mqtt_client
+from rainbow_energy_publisher.publisher import MeasurementPublisher
+from rainbow_energy_publisher.service import run_service
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _parse_args(argv: list[str] | None) -> Path:
     """Parse CLI arguments and return the config path."""
-    parser = argparse.ArgumentParser(prog="rainbow-energy-mqtt")
+    parser = argparse.ArgumentParser(prog="rainbow-energy-publisher")
     parser.add_argument(
         "--config",
         type=Path,

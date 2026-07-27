@@ -1,7 +1,7 @@
 .PHONY: help sync lint test check build run shell
 
-IMAGE ?= rainbow-energy-mqtt
-DEV_IMAGE ?= rainbow-energy-mqtt-dev
+IMAGE ?= rainbow-energy-publisher
+DEV_IMAGE ?= rainbow-energy-publisher-dev
 CONFIG ?= config.yaml
 
 help:

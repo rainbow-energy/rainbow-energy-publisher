@@ -1,4 +1,4 @@
-"""Long-running service loop for rainbow-energy-mqtt."""
+"""Long-running service loop for rainbow-energy-publisher."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from rainbow_energy_client.decode import Measurement
 from rainbow_energy_client.device import RegisterReader
 from rainbow_energy_client.profiles import DeviceProfile
 
-from rainbow_energy_mqtt.config import DEFAULT_LOG_LEVEL
-from rainbow_energy_mqtt.publisher import MeasurementPublisher
+from rainbow_energy_publisher.config import DEFAULT_LOG_LEVEL
+from rainbow_energy_publisher.publisher import MeasurementPublisher
 
 logger = logging.getLogger(__name__)
 

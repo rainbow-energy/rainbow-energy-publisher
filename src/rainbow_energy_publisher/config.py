@@ -1,4 +1,4 @@
-"""Load and validate rainbow-energy-mqtt YAML configuration."""
+"""Load and validate rainbow-energy-publisher YAML configuration."""
 
 from __future__ import annotations
 

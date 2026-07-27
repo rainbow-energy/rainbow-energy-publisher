@@ -4,7 +4,7 @@ import json
 
 from rainbow_energy_client.decode import Measurement
 
-from rainbow_energy_mqtt.publisher import MeasurementPublisher
+from rainbow_energy_publisher.publisher import MeasurementPublisher
 
 
 class FakeMqttClient:

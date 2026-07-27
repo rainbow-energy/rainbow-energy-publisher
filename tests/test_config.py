@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from rainbow_energy_mqtt.config import ConfigError, load_config
+from rainbow_energy_publisher.config import ConfigError, load_config
 
 _EXAMPLE_CONFIG = Path(__file__).resolve().parents[1] / "config.yaml.example"
 

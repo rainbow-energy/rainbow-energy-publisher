@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from rainbow_energy_client.decode import Measurement
 
-from rainbow_energy_mqtt.mqtt import MqttClient
+from rainbow_energy_publisher.mqtt import MqttClient
 
 
 class MeasurementPublisher:

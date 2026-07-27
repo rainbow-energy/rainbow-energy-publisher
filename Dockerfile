@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # Build production:
-#   docker build -t rainbow-energy-mqtt .
+#   docker build -t rainbow-energy-publisher .
 #
 # Build development (lint/tests):
-#   docker build --target development -t rainbow-energy-mqtt-dev .
+#   docker build --target development -t rainbow-energy-publisher-dev .
 #
 # Run (mount a config file):
 #   docker run --rm -v "$PWD/config.yaml:/app/config.yaml:ro" \
-#     rainbow-energy-mqtt
+#     rainbow-energy-publisher
 
 ARG PYTHON_VERSION=3.12
 ARG UV_VERSION=0.11.29
@@ -54,4 +54,4 @@ COPY --from=build /opt/venv /opt/venv
 
 USER energy
 
-CMD ["rainbow-energy-mqtt", "--config", "/app/config.yaml"]
+CMD ["rainbow-energy-publisher", "--config", "/app/config.yaml"]

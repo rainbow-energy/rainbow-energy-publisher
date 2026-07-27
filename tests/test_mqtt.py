@@ -1,6 +1,6 @@
 """Test MQTT client connection helpers."""
 
-from rainbow_energy_mqtt.mqtt import connect_mqtt_client
+from rainbow_energy_publisher.mqtt import connect_mqtt_client
 
 
 def test_connect_mqtt_client_configures_broker(monkeypatch):
@@ -32,7 +32,7 @@ def test_connect_mqtt_client_configures_broker(monkeypatch):
         def reconnect_delay_set(self, min_delay=1, max_delay=120):
             created["reconnect_delay"] = (min_delay, max_delay)
 
-    monkeypatch.setattr("rainbow_energy_mqtt.mqtt.mqtt.Client", FakePaho)
+    monkeypatch.setattr("rainbow_energy_publisher.mqtt.mqtt.Client", FakePaho)
 
     client = connect_mqtt_client(
         host="mqtt.example",
@@ -71,7 +71,7 @@ def test_connect_mqtt_client_skips_auth_when_username_missing(monkeypatch):
         def reconnect_delay_set(self, min_delay=1, max_delay=120):
             pass
 
-    monkeypatch.setattr("rainbow_energy_mqtt.mqtt.mqtt.Client", FakePaho)
+    monkeypatch.setattr("rainbow_energy_publisher.mqtt.mqtt.Client", FakePaho)
 
     connect_mqtt_client(host="mqtt.example", port=1883)
 
@@ -96,7 +96,7 @@ def test_connect_mqtt_client_enables_automatic_reconnect(monkeypatch):
         def loop_start(self):
             pass
 
-    monkeypatch.setattr("rainbow_energy_mqtt.mqtt.mqtt.Client", FakePaho)
+    monkeypatch.setattr("rainbow_energy_publisher.mqtt.mqtt.Client", FakePaho)
 
     connect_mqtt_client(host="mqtt.example", port=1883)
 

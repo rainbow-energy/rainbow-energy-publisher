@@ -6,9 +6,9 @@ from pathlib import Path
 from rainbow_energy_client.profiles import DeviceProfile, ProfileError, RegisterDefinition
 from rainbow_energy_client.reader import RegisterData, RegisterReadError
 
-from rainbow_energy_mqtt.cli import main
-from rainbow_energy_mqtt.publisher import MeasurementPublisher
-from rainbow_energy_mqtt.service import configure_logging, run_service
+from rainbow_energy_publisher.cli import main
+from rainbow_energy_publisher.publisher import MeasurementPublisher
+from rainbow_energy_publisher.service import configure_logging, run_service
 
 
 class FakeReader:
@@ -399,12 +399,12 @@ def test_main_runs_service_from_config(monkeypatch):
     def fake_run_service(**kwargs):
         ran.update(kwargs)
 
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.ModbusReader.tcp", fake_tcp)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.ModbusReader.tcp", fake_tcp)
     monkeypatch.setattr(
-        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        "rainbow_energy_publisher.cli.connect_mqtt_client",
         fake_connect_mqtt_client,
     )
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", fake_run_service)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.run_service", fake_run_service)
 
     example = Path(__file__).resolve().parents[1] / "config.yaml.example"
     assert main(["--config", str(example)]) == 0
@@ -471,14 +471,14 @@ mqtt:
             return None
 
     monkeypatch.setattr(
-        "rainbow_energy_mqtt.cli.ModbusReader.tcp",
+        "rainbow_energy_publisher.cli.ModbusReader.tcp",
         lambda **_kwargs: FakeTransport(),
     )
 
     def boom(**_kwargs):
         raise ConnectionRefusedError("connection refused")
 
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.connect_mqtt_client", boom)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.connect_mqtt_client", boom)
 
     assert main(["--config", str(config_path)]) == 2
     assert "mqtt error" in capsys.readouterr().err
@@ -518,11 +518,11 @@ mqtt:
             mqtt["closed"] = True
 
     monkeypatch.setattr(
-        "rainbow_energy_mqtt.cli.ModbusReader.tcp",
+        "rainbow_energy_publisher.cli.ModbusReader.tcp",
         lambda **_kwargs: BoomTransport(),
     )
     monkeypatch.setattr(
-        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        "rainbow_energy_publisher.cli.connect_mqtt_client",
         lambda **_kwargs: FakeMqtt(),
     )
 
@@ -563,20 +563,20 @@ mqtt:
         loaded["path"] = path
         return _profile()
 
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.load_profile", fake_load_profile)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.load_profile", fake_load_profile)
     monkeypatch.setattr(
-        "rainbow_energy_mqtt.cli.ModbusReader.tcp",
+        "rainbow_energy_publisher.cli.ModbusReader.tcp",
         lambda **_kwargs: FakeTransport(),
     )
     monkeypatch.setattr(
-        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        "rainbow_energy_publisher.cli.connect_mqtt_client",
         lambda **_kwargs: type(
             "Mqtt",
             (),
             {"publish": lambda self, *args, **kwargs: None, "close": lambda self: None},
         )(),
     )
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.run_service", lambda **_kwargs: None)
 
     assert main(["--config", str(config_path)]) == 0
     assert loaded["path"] == profile_file
@@ -603,7 +603,7 @@ mqtt:
     def boom(_name):
         raise ProfileError("unknown profile")
 
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.load_packaged_profile", boom)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.load_packaged_profile", boom)
 
     assert main(["--config", str(config_path)]) == 2
     assert "profile error" in capsys.readouterr().err
@@ -640,16 +640,16 @@ mqtt:
         opened.update(port=port, device_id=device_id)
         return FakeTransport()
 
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.ModbusReader.serial", fake_serial)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.ModbusReader.serial", fake_serial)
     monkeypatch.setattr(
-        "rainbow_energy_mqtt.cli.connect_mqtt_client",
+        "rainbow_energy_publisher.cli.connect_mqtt_client",
         lambda **_kwargs: type(
             "Mqtt",
             (),
             {"publish": lambda self, *args, **kwargs: None, "close": lambda self: None},
         )(),
     )
-    monkeypatch.setattr("rainbow_energy_mqtt.cli.run_service", lambda **_kwargs: None)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.run_service", lambda **_kwargs: None)
 
     assert main(["--config", str(config_path)]) == 0
     assert opened == {"port": "/dev/ttyUSB0", "device_id": 2}

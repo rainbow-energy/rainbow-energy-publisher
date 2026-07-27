@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rainbow-energy-mqtt"
+name = "rainbow-energy-publisher"
 version = "0.1.0"
 description = "Publish inverter measurements to MQTT for Home Assistant"
 readme = "README.md"
@@ -19,11 +19,11 @@ dependencies = [
 ]
 
 [project.scripts]
-rainbow-energy-mqtt = "rainbow_energy_mqtt.cli:main"
+rainbow-energy-publisher = "rainbow_energy_publisher.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/rainbow-solar/rainbow-energy-mqtt"
-Repository = "https://github.com/rainbow-solar/rainbow-energy-mqtt"
+Homepage = "https://github.com/rainbow-solar/rainbow-energy-publisher"
+Repository = "https://github.com/rainbow-solar/rainbow-energy-publisher"
 
 [dependency-groups]
 dev = [
@@ -36,12 +36,12 @@ dev = [
 rainbow-energy-client = { git = "https://github.com/rainbow-solar/rainbow-energy-client.git" }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rainbow_energy_mqtt"]
+packages = ["src/rainbow_energy_publisher"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
-  "--cov=rainbow_energy_mqtt",
+  "--cov=rainbow_energy_publisher",
   "--cov-report=term-missing",
   "--cov-fail-under=100",
 ]

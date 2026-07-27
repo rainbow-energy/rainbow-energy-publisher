@@ -1,8 +1,8 @@
-# Rainbow Energy MQTT agent guidance
+# Rainbow Energy Publisher agent guidance
 
 ## Project context
 
-- Rainbow Energy MQTT is a long-running service that polls an inverter with
+- Rainbow Energy Publisher is a long-running service that polls an inverter with
   [`rainbow-energy-client`](https://github.com/rainbow-solar/rainbow-energy-client)
   and will publish measurements to MQTT (for Home Assistant and other
   subscribers).
@@ -17,7 +17,7 @@
   `make build` / `make run` use the Alpine production image.
 - CI is GitHub Actions (`.github/workflows/ci.yml`): `make check`, then
   build the production image; pushes to `main` also publish to GHCR
-  (`ghcr.io/<owner>/rainbow-energy-mqtt`).
+  (`ghcr.io/<owner>/rainbow-energy-publisher`).
 
 ## Development process
 

@@ -54,4 +54,5 @@ COPY --from=build /opt/venv /opt/venv
 
 USER energy
 
-CMD ["rainbow-energy-publisher", "--config", "/app/config.yaml"]
+ENTRYPOINT ["rainbow-energy-publisher"]
+CMD ["--config", "/app/config.yaml"]

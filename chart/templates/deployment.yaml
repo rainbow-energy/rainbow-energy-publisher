@@ -18,9 +18,6 @@ spec:
         - name: publisher
           image: {{ include "rainbow-energy-publisher.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args:
-            - --config
-            - /app/config.yaml
           envFrom:
             {{- $secretName := include "rainbow-energy-publisher.mqttSecretName" . }}
             {{- if $secretName }}

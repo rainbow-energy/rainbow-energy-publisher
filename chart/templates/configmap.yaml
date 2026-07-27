@@ -41,6 +41,9 @@ data:
       retain: {{ .Values.config.mqtt.retain }}
       ha_discovery: {{ .Values.config.mqtt.ha_discovery }}
       discovery_prefix: {{ .Values.config.mqtt.discovery_prefix | quote }}
+      {{- with .Values.config.mqtt.username }}
+      username: {{ . | quote }}
+      {{- end }}
       {{- with .Values.config.mqtt.device_id }}
       device_id: {{ . | quote }}
       {{- end }}

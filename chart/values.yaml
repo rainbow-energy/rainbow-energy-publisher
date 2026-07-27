@@ -2,7 +2,9 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/rainbow-energy/rainbow-energy-publisher
-  tag: latest
+  # Empty → Chart.AppVersion (short SHA on published charts; "latest" locally).
+  # Override to pin or use latest explicitly, e.g. tag: latest
+  tag: ""
   pullPolicy: IfNotPresent
 
 nameOverride: ""

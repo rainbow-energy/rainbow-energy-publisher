@@ -42,3 +42,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- "" }}
 {{- end }}
 {{- end }}
+
+{{/*
+Image reference. Empty image.tag uses Chart.AppVersion (short SHA from CI;
+"latest" in the local chart tree placeholder).
+*/}}
+{{- define "rainbow-energy-publisher.image" -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
+{{- end }}

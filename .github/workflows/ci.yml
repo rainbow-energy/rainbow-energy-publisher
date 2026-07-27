@@ -14,17 +14,45 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/rainbow-energy-publisher
 
 jobs:
-  check-and-build:
+  test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Lint and test
         run: make check
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm chart
+        run: helm lint chart
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      short_sha: ${{ steps.version.outputs.short_sha }}
+      chart_version: ${{ steps.version.outputs.chart_version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compute versions
+        id: version
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          # Commit date (UTC) so build and chart jobs stay aligned across midnight.
+          chart_version="$(date -u -d "$(git show -s --format=%cI HEAD)" +%-Y.%-m.%-d)-${short_sha}"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "chart_version=${chart_version}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${short_sha} chart_version=${chart_version}"
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -40,7 +68,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix=
+            type=raw,value=${{ steps.version.outputs.short_sha }}
+            type=raw,value=${{ steps.version.outputs.chart_version }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build production image
@@ -51,3 +80,31 @@ jobs:
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  publish-helm-chart:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Package and push Helm chart
+        env:
+          CHART_VERSION: ${{ needs.build.outputs.chart_version }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+        run: |
+          echo "chart version=${CHART_VERSION} appVersion=${SHORT_SHA}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login "${{ env.REGISTRY }}" \
+            -u "${{ github.actor }}" --password-stdin
+          helm package chart \
+            --version "${CHART_VERSION}" \
+            --app-version "${SHORT_SHA}"
+          helm push "rainbow-energy-publisher-${CHART_VERSION}.tgz" \
+            "oci://${{ env.REGISTRY }}/${{ github.repository_owner }}"

@@ -48,10 +48,31 @@ make check
 
 Run `make help` for all targets.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `make check`, builds the
-production image, and on pushes to `main` publishes it to GHCR as
-`ghcr.io/<owner>/rainbow-energy-publisher` (`latest` and the short commit SHA).
-Pull requests build the image but do not push.
+GitHub Actions (`.github/workflows/ci.yml`) has three jobs:
+
+1. **test** — `make check` and `helm lint chart`
+2. **build** — production image (push to GHCR on `main` only)
+3. **publish-helm-chart** — package and push the chart to GHCR (`main` only)
+
+Published artifacts (same commit → shared versions):
+
+- image tags: `latest`, short SHA (e.g. `a1b2c3d`), and CalVer+SHA
+  (e.g. `2026.7.27-a1b2c3d`)
+- chart: `oci://ghcr.io/<owner>/rainbow-energy-publisher` — `version` is
+  CalVer+SHA (same string as the CalVer image tag); `appVersion` is the
+  short SHA (same as the SHA image tag). The chart deploys that SHA image
+  by default (`image.tag` empty → `Chart.AppVersion`).
+
+Pull requests run **test** and **build** (no push) and skip chart publish.
+
+Install a published chart (pick a version from GHCR / the workflow log):
+
+```bash
+helm upgrade --install publisher \
+  oci://ghcr.io/rainbow-energy/rainbow-energy-publisher \
+  --version 2026.7.27-a1b2c3d \
+  -f my-values.yaml
+```
 
 ## Kubernetes (Helm)
 
@@ -66,6 +87,16 @@ container; pin that pod with `nodeSelector`.
 
 ```bash
 # my-values.yaml — set Modbus + MQTT for your site
+helm upgrade --install publisher \
+  oci://ghcr.io/rainbow-energy/rainbow-energy-publisher \
+  --version 2026.7.27-a1b2c3d \
+  --namespace energy --create-namespace \
+  -f my-values.yaml
+```
+
+Or install from the local chart tree:
+
+```bash
 helm upgrade --install publisher ./chart \
   --namespace energy --create-namespace \
   -f my-values.yaml

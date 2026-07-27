@@ -2,5 +2,8 @@ apiVersion: v2
 name: rainbow-energy-publisher
 description: Poll an inverter via Modbus and publish measurements to MQTT
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+# Placeholder only — CI sets version to CalVer+SHA (e.g. 2026.7.27-abc1234)
+# and appVersion to the short commit SHA (same as the image tag) when publishing.
+# Local installs with empty image.tag use this appVersion ("latest").
+version: 0.0.0
+appVersion: "latest"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 
-from rainbow_energy_client.decode import Measurement
+from rainbow_energy_modbus_client.decode import Measurement
 
 from rainbow_energy_publisher.mqtt import MqttClient
 

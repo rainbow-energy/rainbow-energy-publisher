@@ -1,7 +1,7 @@
 # Rainbow Energy Publisher
 
 Long-running service that polls an inverter with
-[`rainbow-energy-client`](https://github.com/rainbow-solar/rainbow-energy-client)
+[`rainbow-energy-modbus-client`](https://github.com/rainbow-energy/rainbow-energy-modbus-client)
 and publishes measurements to MQTT (for Home Assistant and other subscribers).
 
 ## Usage

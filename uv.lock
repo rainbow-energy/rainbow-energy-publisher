@@ -261,9 +261,9 @@ wheels = [
 ]
 
 [[package]]
-name = "rainbow-energy-client"
+name = "rainbow-energy-modbus-client"
 version = "0.1.0"
-source = { git = "https://github.com/rainbow-solar/rainbow-energy-client.git#2f71681add83c6ea4f703cb1e60c7f6300c6196c" }
+source = { git = "https://github.com/rainbow-energy/rainbow-energy-modbus-client.git#33240f454633d8b2e98a9d3411e95def1b2fd175" }
 dependencies = [
     { name = "jsonschema" },
     { name = "pymodbus", extra = ["serial"] },
@@ -277,7 +277,7 @@ source = { editable = "." }
 dependencies = [
     { name = "paho-mqtt" },
     { name = "pyyaml" },
-    { name = "rainbow-energy-client" },
+    { name = "rainbow-energy-modbus-client" },
 ]
 
 [package.dev-dependencies]
@@ -291,7 +291,7 @@ dev = [
 requires-dist = [
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "rainbow-energy-client", git = "https://github.com/rainbow-solar/rainbow-energy-client.git" },
+    { name = "rainbow-energy-modbus-client", git = "https://github.com/rainbow-energy/rainbow-energy-modbus-client.git" },
 ]
 
 [package.metadata.requires-dev]

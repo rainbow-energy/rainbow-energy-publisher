@@ -3,10 +3,10 @@
 ## Project context
 
 - Rainbow Energy Publisher is a long-running service that polls an inverter with
-  [`rainbow-energy-client`](https://github.com/rainbow-solar/rainbow-energy-client)
+  [`rainbow-energy-modbus-client`](https://github.com/rainbow-energy/rainbow-energy-modbus-client)
   and will publish measurements to MQTT (for Home Assistant and other
   subscribers).
-- Depend on `rainbow-energy-client` for Modbus transport, profiles, and
+- Depend on `rainbow-energy-modbus-client` for Modbus transport, profiles, and
   decoding; do not reimplement Modbus framing or register decode here.
 - Publish measurement state topics via an injectable MQTT client
   (`MeasurementPublisher`); use fakes in unit tests, not a live broker.

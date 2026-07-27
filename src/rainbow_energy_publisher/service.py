@@ -6,10 +6,10 @@ import logging
 from collections.abc import Callable, Sequence
 from time import sleep as default_sleep
 
-from rainbow_energy_client import Client, ClientError
-from rainbow_energy_client.decode import Measurement
-from rainbow_energy_client.device import RegisterReader
-from rainbow_energy_client.profiles import DeviceProfile
+from rainbow_energy_modbus_client import Client, ClientError
+from rainbow_energy_modbus_client.decode import Measurement
+from rainbow_energy_modbus_client.device import RegisterReader
+from rainbow_energy_modbus_client.profiles import DeviceProfile
 
 from rainbow_energy_publisher.config import DEFAULT_LOG_LEVEL
 from rainbow_energy_publisher.publisher import MeasurementPublisher

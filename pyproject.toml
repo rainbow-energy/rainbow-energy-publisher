@@ -15,15 +15,15 @@ authors = [
 dependencies = [
   "paho-mqtt>=2.1.0",
   "pyyaml>=6.0.3",
-  "rainbow-energy-client",
+  "rainbow-energy-modbus-client",
 ]
 
 [project.scripts]
 rainbow-energy-publisher = "rainbow_energy_publisher.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/rainbow-solar/rainbow-energy-publisher"
-Repository = "https://github.com/rainbow-solar/rainbow-energy-publisher"
+Homepage = "https://github.com/rainbow-energy/rainbow-energy-publisher"
+Repository = "https://github.com/rainbow-energy/rainbow-energy-publisher"
 
 [dependency-groups]
 dev = [
@@ -33,7 +33,8 @@ dev = [
 ]
 
 [tool.uv.sources]
-rainbow-energy-client = { git = "https://github.com/rainbow-solar/rainbow-energy-client.git" }
+# Requires `rainbow-energy-modbus-client` on main (not legacy `rainbow-energy-client`).
+rainbow-energy-modbus-client = { git = "https://github.com/rainbow-energy/rainbow-energy-modbus-client.git" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rainbow_energy_publisher"]

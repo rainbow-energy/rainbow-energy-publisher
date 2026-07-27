@@ -6,9 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from rainbow_energy_client import ModbusReader, load_packaged_profile
-from rainbow_energy_client.device import RegisterReader
-from rainbow_energy_client.profiles import DeviceProfile, ProfileError, load_profile
+from rainbow_energy_modbus_client import ModbusReader, load_packaged_profile
+from rainbow_energy_modbus_client.device import RegisterReader
+from rainbow_energy_modbus_client.profiles import DeviceProfile, ProfileError, load_profile
 
 from rainbow_energy_publisher.config import ConfigError, ServiceConfig, load_config
 from rainbow_energy_publisher.mqtt import MqttClient, connect_mqtt_client

@@ -3,8 +3,8 @@
 import logging
 from pathlib import Path
 
-from rainbow_energy_client.profiles import DeviceProfile, ProfileError, RegisterDefinition
-from rainbow_energy_client.reader import RegisterData, RegisterReadError
+from rainbow_energy_modbus_client.profiles import DeviceProfile, ProfileError, RegisterDefinition
+from rainbow_energy_modbus_client.reader import RegisterData, RegisterReadError
 
 from rainbow_energy_publisher.cli import main
 from rainbow_energy_publisher.publisher import MeasurementPublisher

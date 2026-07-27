@@ -15,6 +15,9 @@
 - Lint, tests, and the service all run through Docker via the `Makefile`.
   `make sync` / `make lint` / `make test` use the development image;
   `make build` / `make run` use the Alpine production image.
+- CI is GitHub Actions (`.github/workflows/ci.yml`): `make check`, then
+  build the production image; pushes to `main` also publish to GHCR
+  (`ghcr.io/<owner>/rainbow-energy-mqtt`).
 
 ## Development process
 

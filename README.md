@@ -47,3 +47,8 @@ make check
 ```
 
 Run `make help` for all targets.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `make check`, builds the
+production image, and on pushes to `main` publishes it to GHCR as
+`ghcr.io/<owner>/rainbow-energy-mqtt` (`latest` and the short commit SHA).
+Pull requests build the image but do not push.

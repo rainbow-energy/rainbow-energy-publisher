@@ -1,0 +1,46 @@
+{{- if and .Values.config.modbus.tcp .Values.config.modbus.usb }}
+{{- fail "set exactly one of config.modbus.tcp or config.modbus.usb (set the other to null)" }}
+{{- end }}
+{{- if and (not .Values.config.modbus.tcp) (not .Values.config.modbus.usb) }}
+{{- fail "set exactly one of config.modbus.tcp or config.modbus.usb" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rainbow-energy-publisher.fullname" . }}
+  labels:
+    {{- include "rainbow-energy-publisher.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    interval: {{ .Values.config.interval }}
+    log_level: {{ .Values.config.log_level | quote }}
+    profile: {{ .Values.config.profile | quote }}
+    {{- if eq (toString .Values.config.keys) "*" }}
+    keys: "*"
+    {{- else }}
+    keys:
+    {{- range .Values.config.keys }}
+      - {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    modbus:
+      device_id: {{ .Values.config.modbus.device_id }}
+      {{- with .Values.config.modbus.tcp }}
+      tcp:
+        host: {{ .host | quote }}
+        port: {{ .port }}
+      {{- end }}
+      {{- with .Values.config.modbus.usb }}
+      usb:
+        port: {{ .port | quote }}
+      {{- end }}
+    mqtt:
+      host: {{ .Values.config.mqtt.host | quote }}
+      port: {{ .Values.config.mqtt.port }}
+      topic_prefix: {{ .Values.config.mqtt.topic_prefix | quote }}
+      retain: {{ .Values.config.mqtt.retain }}
+      ha_discovery: {{ .Values.config.mqtt.ha_discovery }}
+      discovery_prefix: {{ .Values.config.mqtt.discovery_prefix | quote }}
+      {{- with .Values.config.mqtt.device_id }}
+      device_id: {{ . | quote }}
+      {{- end }}

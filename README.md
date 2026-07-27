@@ -52,3 +52,64 @@ GitHub Actions (`.github/workflows/ci.yml`) runs `make check`, builds the
 production image, and on pushes to `main` publishes it to GHCR as
 `ghcr.io/<owner>/rainbow-energy-publisher` (`latest` and the short commit SHA).
 Pull requests build the image but do not push.
+
+## Kubernetes (Helm)
+
+A minimal chart lives in [`chart/`](chart/). It deploys one `Deployment`,
+mounts `config.yaml` from a `ConfigMap`, and optionally creates a `Secret`
+for `MQTT_USERNAME` / `MQTT_PASSWORD`.
+
+Uncomment **exactly one** of `config.modbus.tcp` or `config.modbus.usb`
+in your values (omit the other). TCP is usual for remote `mbusd`. USB mounts
+the host device via `hostPath` (`CharDevice`) and defaults to a privileged
+container; pin that pod with `nodeSelector`.
+
+```bash
+# my-values.yaml — set Modbus + MQTT for your site
+helm upgrade --install publisher ./chart \
+  --namespace energy --create-namespace \
+  -f my-values.yaml
+```
+
+Example `my-values.yaml` (TCP):
+
+```yaml
+config:
+  modbus:
+    device_id: 1
+    tcp:
+      host: solarassistant.example
+      port: 502
+  mqtt:
+    host: mqtt.example
+    topic_prefix: rainbow/energy
+mqtt:
+  existingSecret: publisher-mqtt
+```
+
+USB instead of TCP:
+
+```yaml
+config:
+  modbus:
+    device_id: 1
+    usb:
+      port: /dev/ttyUSB0
+nodeSelector:
+  kubernetes.io/hostname: pi-with-rs485
+```
+
+Create MQTT credentials if not using chart-managed username/password:
+
+```bash
+kubectl create secret generic publisher-mqtt \
+  --from-literal=MQTT_USERNAME=... \
+  --from-literal=MQTT_PASSWORD=...
+```
+
+Lint the chart (requires [Helm](https://helm.sh)):
+
+```bash
+helm lint chart
+helm template publisher chart -f my-values.yaml --debug
+```

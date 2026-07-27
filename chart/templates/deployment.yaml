@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rainbow-energy-publisher.fullname" . }}
+  labels:
+    {{- include "rainbow-energy-publisher.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rainbow-energy-publisher.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rainbow-energy-publisher.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: publisher
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --config
+            - /app/config.yaml
+          envFrom:
+            {{- $secretName := include "rainbow-energy-publisher.mqttSecretName" . }}
+            {{- if $secretName }}
+            - secretRef:
+                name: {{ $secretName }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            {{- with .Values.config.modbus.usb }}
+            - name: modbus-usb
+              mountPath: {{ .port }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- if and .Values.config.modbus.usb .Values.usb.privileged }}
+            privileged: true
+            {{- else }}
+            runAsNonRoot: true
+            runAsUser: 10001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "rainbow-energy-publisher.fullname" . }}
+        {{- with .Values.config.modbus.usb }}
+        - name: modbus-usb
+          hostPath:
+            path: {{ .port }}
+            type: CharDevice
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

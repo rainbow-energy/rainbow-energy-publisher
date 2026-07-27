@@ -1,0 +1,12 @@
+Rainbow Energy Publisher is running.
+
+{{- if .Values.config.modbus.tcp }}
+Modbus TCP: {{ .Values.config.modbus.tcp.host }}:{{ .Values.config.modbus.tcp.port }}
+{{- else if .Values.config.modbus.usb }}
+Modbus USB: {{ .Values.config.modbus.usb.port }} (hostPath on the scheduled node)
+{{- end }}
+MQTT: {{ .Values.config.mqtt.host }}:{{ .Values.config.mqtt.port }}
+Topic prefix: {{ .Values.config.mqtt.topic_prefix }}
+
+Watch logs:
+  kubectl logs -f deployment/{{ include "rainbow-energy-publisher.fullname" . }} -n {{ .Release.Namespace }}

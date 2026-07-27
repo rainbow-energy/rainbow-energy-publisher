@@ -1,0 +1,62 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/rainbow-energy/rainbow-energy-publisher
+  tag: latest
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Service settings (see config.yaml.example in the app repo).
+config:
+  interval: 5.0
+  log_level: INFO
+  profile: sunsynk_8k_sg05lp1
+  # keys: "*" polls every readable register. Or list specific keys:
+  keys: "*"
+  # keys:
+  #   - battery_soc
+  #   - battery_voltage
+  #   - battery_power
+  #   - pv_power
+  #   - load_power
+  #   - grid_power
+  modbus:
+    device_id: 1
+    # Uncomment exactly one of tcp or usb (omit the other).
+    # tcp:
+    #   host: modbus-gateway.example
+    #   port: 502
+    # usb:
+    #   port: /dev/ttyUSB0
+    #   # Prefer nodeSelector so the pod lands on the node with the adapter.
+
+  mqtt:
+    host: mqtt.example
+    port: 1883
+    topic_prefix: rainbow/energy
+    retain: true
+    device_id: null
+    ha_discovery: false
+    discovery_prefix: homeassistant
+
+# MQTT credentials: prefer existingSecret, or set username/password here
+# (creates a Secret). Env vars MQTT_USERNAME / MQTT_PASSWORD override YAML.
+mqtt:
+  existingSecret: ""
+  username: ""
+  password: ""
+
+# When using config.modbus.usb, the host device is mounted into the pod.
+# Privileged is usually required for serial USB access.
+usb:
+  privileged: true
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

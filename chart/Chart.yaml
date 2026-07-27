@@ -1,0 +1,6 @@
+apiVersion: v2
+name: rainbow-energy-publisher
+description: Poll an inverter via Modbus and publish measurements to MQTT
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

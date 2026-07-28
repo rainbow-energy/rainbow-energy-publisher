@@ -263,7 +263,7 @@ wheels = [
 [[package]]
 name = "rainbow-energy-modbus-client"
 version = "0.1.0"
-source = { git = "https://github.com/rainbow-energy/rainbow-energy-modbus-client.git#33240f454633d8b2e98a9d3411e95def1b2fd175" }
+source = { git = "https://github.com/rainbow-energy/rainbow-energy-modbus-client.git#955d8ea33f61f45b15b70869ee939961ce1f5184" }
 dependencies = [
     { name = "jsonschema" },
     { name = "pymodbus", extra = ["serial"] },

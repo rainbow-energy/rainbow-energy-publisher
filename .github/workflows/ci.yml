@@ -48,11 +48,11 @@ jobs:
         id: version
         run: |
           short_sha="${GITHUB_SHA::7}"
-          # CalVer date (UTC, zero-padded) + run number + short SHA.
-          # Run number is monotonic so same-day releases sort for Renovate;
-          # SHA is display/traceability only.
-          calver="$(date -u -d "$(git show -s --format=%cI HEAD)" +%Y.%m.%d)"
-          chart_version="${calver}.${GITHUB_RUN_NUMBER}-${short_sha}"
+          # Helm requires SemVer: MAJOR.MINOR.PATCH[-prerelease].
+          # CalVer date + r<run>.g<sha> keeps same-day ordering (run) and
+          # traceability (sha). No leading zeros (SemVer); no '+' (Docker tags).
+          calver="$(date -u -d "$(git show -s --format=%cI HEAD)" +%-Y.%-m.%-d)"
+          chart_version="${calver}-r${GITHUB_RUN_NUMBER}.g${short_sha}"
           echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
           echo "chart_version=${chart_version}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${short_sha} chart_version=${chart_version}"

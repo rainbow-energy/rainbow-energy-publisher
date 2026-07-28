@@ -475,10 +475,13 @@ mqtt:
         lambda **_kwargs: FakeTransport(),
     )
 
-    def boom(**_kwargs):
+    def raise_connection_refused(**_kwargs):
         raise ConnectionRefusedError("connection refused")
 
-    monkeypatch.setattr("rainbow_energy_publisher.cli.connect_mqtt_client", boom)
+    monkeypatch.setattr(
+        "rainbow_energy_publisher.cli.connect_mqtt_client",
+        raise_connection_refused,
+    )
 
     assert main(["--config", str(config_path)]) == 2
     assert "mqtt error" in capsys.readouterr().err
@@ -583,7 +586,7 @@ mqtt:
 
 
 def test_main_reports_profile_errors(monkeypatch, tmp_path, capsys):
-    """Exit non-zero when the packaged profile cannot be loaded."""
+    """Exit non-zero when the named profile cannot be loaded."""
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
         """
@@ -600,10 +603,10 @@ mqtt:
         encoding="utf-8",
     )
 
-    def boom(_name):
+    def raise_profile_error(_path):
         raise ProfileError("unknown profile")
 
-    monkeypatch.setattr("rainbow_energy_publisher.cli.load_packaged_profile", boom)
+    monkeypatch.setattr("rainbow_energy_publisher.cli.load_profile", raise_profile_error)
 
     assert main(["--config", str(config_path)]) == 2
     assert "profile error" in capsys.readouterr().err

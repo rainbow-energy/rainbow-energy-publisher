@@ -8,6 +8,10 @@
   subscribers).
 - Depend on `rainbow-energy-modbus-client` for Modbus transport, profiles, and
   decoding; do not reimplement Modbus framing or register decode here.
+- Device YAML maps are baked from
+  [`rainbow-energy-modbus-profiles`](https://github.com/rainbow-energy/rainbow-energy-modbus-profiles)
+  into `/profiles`. Config `profile: <name>` loads `/profiles/<name>.yaml`;
+  `profile_path` overrides with an explicit file.
 - Publish measurement state topics via an injectable MQTT client
   (`MeasurementPublisher`); use fakes in unit tests, not a live broker.
 - Python dependencies and locking are managed with `uv`. The client package

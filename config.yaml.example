@@ -1,8 +1,9 @@
 interval: 5.0
 # Optional; default is INFO (DEBUG, WARNING, ERROR, …)
 # log_level: DEBUG
+# Stem name under /profiles in the image:
 profile: sunsynk_8k_sg05lp1
-# Or use a custom map on disk:
+# Or point at any map on disk (overrides profile):
 # profile_path: /maps/my_inverter.yaml
 keys:
   - battery_soc

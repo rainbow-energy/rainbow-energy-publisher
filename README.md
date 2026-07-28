@@ -4,6 +4,11 @@ Long-running service that polls an inverter with
 [`rainbow-energy-modbus-client`](https://github.com/rainbow-energy/rainbow-energy-modbus-client)
 and publishes measurements to MQTT (for Home Assistant and other subscribers).
 
+Device register maps ship in the image from
+[`rainbow-energy-modbus-profiles`](https://github.com/rainbow-energy/rainbow-energy-modbus-profiles)
+under `/profiles`. Config `profile: <name>` loads `/profiles/<name>.yaml`.
+Use `profile_path` to mount a custom map instead.
+
 ## Usage
 
 ```bash

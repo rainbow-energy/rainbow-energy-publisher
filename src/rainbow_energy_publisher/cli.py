@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from rainbow_energy_modbus_client import ModbusReader, load_packaged_profile
+from rainbow_energy_modbus_client import ModbusReader
 from rainbow_energy_modbus_client.device import RegisterReader
 from rainbow_energy_modbus_client.profiles import DeviceProfile, ProfileError, load_profile
 
@@ -14,6 +14,8 @@ from rainbow_energy_publisher.config import ConfigError, ServiceConfig, load_con
 from rainbow_energy_publisher.mqtt import MqttClient, connect_mqtt_client
 from rainbow_energy_publisher.publisher import MeasurementPublisher
 from rainbow_energy_publisher.service import run_service
+
+PROFILE_DIR = Path("/profiles")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,10 +66,10 @@ def _fail(prefix: str, error: BaseException) -> int:
 
 
 def _load_profile(config: ServiceConfig) -> DeviceProfile:
-    """Load the configured packaged or filesystem profile."""
+    """Load the configured profile from profile_path or /profiles/{name}.yaml."""
     if config.profile_path is not None:
         return load_profile(config.profile_path)
-    return load_packaged_profile(config.profile)
+    return load_profile(PROFILE_DIR / f"{config.profile}.yaml")
 
 
 def _open_modbus_reader(config: ServiceConfig) -> RegisterReader:

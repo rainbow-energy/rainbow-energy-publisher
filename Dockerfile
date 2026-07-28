@@ -9,11 +9,25 @@
 # Run (mount a config file):
 #   docker run --rm -v "$PWD/config.yaml:/app/config.yaml:ro" \
 #     rainbow-energy-publisher
+#
+# Profile maps are cloned from rainbow-energy-modbus-profiles into /profiles.
+# Override the git ref with --build-arg PROFILES_REF=<sha|tag|branch>.
 
 ARG PYTHON_VERSION=3.12
 ARG UV_VERSION=0.11.29
+ARG PROFILES_REPO=https://github.com/rainbow-energy/rainbow-energy-modbus-profiles.git
+ARG PROFILES_REF=main
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
+FROM alpine:3.21 AS profiles
+ARG PROFILES_REPO
+ARG PROFILES_REF
+RUN apk add --no-cache git \
+    && git clone --depth 1 --branch "${PROFILES_REF}" "${PROFILES_REPO}" /tmp/repo \
+    && mkdir -p /profiles \
+    && cp /tmp/repo/profiles/*.yaml /profiles/ \
+    && rm -rf /tmp/repo
 
 FROM python:${PYTHON_VERSION}-alpine AS build
 
@@ -38,6 +52,8 @@ FROM build AS development
 
 RUN uv sync --locked --no-editable
 
+COPY --from=profiles /profiles /profiles
+
 CMD ["uv", "run", "--locked", "pytest"]
 
 FROM python:${PYTHON_VERSION}-alpine AS production
@@ -51,6 +67,7 @@ WORKDIR /app
 RUN adduser -D -u 10001 energy
 
 COPY --from=build /opt/venv /opt/venv
+COPY --from=profiles /profiles /profiles
 
 USER energy
 

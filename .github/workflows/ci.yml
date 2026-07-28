@@ -77,6 +77,8 @@ jobs:
         with:
           context: .
           target: production
+          build-args: |
+            PROFILES_REF=main
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

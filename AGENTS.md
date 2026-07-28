@@ -22,11 +22,12 @@
 - CI is GitHub Actions (`.github/workflows/ci.yml`) with jobs `test`,
   `build`, and `publish-helm-chart`. Pushes to `main` publish the image
   and Helm chart to GHCR (`ghcr.io/<owner>/rainbow-energy-publisher`).
-  Chart `version` is CalVer + GitHub run number + short SHA
-  (e.g. `2026.07.28.142-a1b2c3d`) so same-day releases sort for Renovate.
-  Docker images are tagged with that same string, the short SHA, and
-  `latest`. Chart `appVersion` is the short SHA; the chart deploys that
-  image tag by default (`image.tag` empty → `Chart.AppVersion`).
+  Chart `version` is CalVer SemVer with run + SHA prerelease
+  (e.g. `2026.7.28-r142.ga1b2c3d`) so Helm accepts it and same-day
+  releases sort for Renovate. Docker images are tagged with that same
+  string, the short SHA, and `latest`. Chart `appVersion` is the short
+  SHA; the chart deploys that image tag by default (`image.tag` empty →
+  `Chart.AppVersion`).
 
 ## Development process
 

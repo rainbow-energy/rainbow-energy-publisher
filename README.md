@@ -61,14 +61,14 @@ GitHub Actions (`.github/workflows/ci.yml`) has three jobs:
 
 Published artifacts (same commit → shared versions):
 
-- image tags: `latest`, short SHA (e.g. `a1b2c3d`), and CalVer+run+SHA
-  (e.g. `2026.07.28.142-a1b2c3d`)
+- image tags: `latest`, short SHA (e.g. `a1b2c3d`), and CalVer SemVer
+  (e.g. `2026.7.28-r142.ga1b2c3d`)
 - chart: `oci://ghcr.io/<owner>/rainbow-energy-publisher` — `version` is
-  CalVer + GitHub run number + short SHA (same string as the CalVer image
+  CalVer with `r<run>.g<sha>` prerelease (same string as the CalVer image
   tag); `appVersion` is the short SHA (same as the SHA image tag). The
   chart deploys that SHA image by default (`image.tag` empty →
   `Chart.AppVersion`). The run number makes same-day releases sortable
-  for dependency bots (e.g. Renovate).
+  for dependency bots (e.g. Renovate) while staying Helm SemVer-valid.
 
 Pull requests run **test** and **build** (no push) and skip chart publish.
 
@@ -77,7 +77,7 @@ Install a published chart (pick a version from GHCR / the workflow log):
 ```bash
 helm upgrade --install publisher \
   oci://ghcr.io/rainbow-energy/rainbow-energy-publisher \
-  --version 2026.07.28.142-a1b2c3d \
+  --version 2026.7.28-r142.ga1b2c3d \
   -f my-values.yaml
 ```
 
@@ -99,7 +99,7 @@ container; pin that pod with `nodeSelector`.
 # my-values.yaml — set Modbus + MQTT for your site
 helm upgrade --install publisher \
   oci://ghcr.io/rainbow-energy/rainbow-energy-publisher \
-  --version 2026.07.28.142-a1b2c3d \
+  --version 2026.7.28-r142.ga1b2c3d \
   --namespace energy --create-namespace \
   -f my-values.yaml
 ```

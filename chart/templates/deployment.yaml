@@ -4,6 +4,10 @@ metadata:
   name: {{ include "rainbow-energy-publisher.fullname" . }}
   labels:
     {{- include "rainbow-energy-publisher.labels" . | nindent 4 }}
+  {{- if .Values.reloader.enabled }}
+  annotations:
+    reloader.stakater.com/auto: "true"
+  {{- end }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:

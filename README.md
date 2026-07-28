@@ -78,7 +78,10 @@ helm upgrade --install publisher \
 
 A minimal chart lives in [`chart/`](chart/). It deploys one `Deployment`,
 mounts `config.yaml` from a `ConfigMap`, and optionally creates a `Secret`
-for `MQTT_USERNAME` / `MQTT_PASSWORD`.
+for `MQTT_USERNAME` / `MQTT_PASSWORD`. With `reloader.enabled` (default
+`true`), the Deployment is annotated for [Stakater Reloader](https://github.com/stakater/Reloader)
+so ConfigMap/Secret edits trigger a rolling restart. Image updates still
+need a Helm upgrade that changes `image.tag` / chart `appVersion`.
 
 Uncomment **exactly one** of `config.modbus.tcp` or `config.modbus.usb`
 in your values (omit the other). TCP is usual for remote `mbusd`. USB mounts

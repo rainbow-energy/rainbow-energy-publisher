@@ -55,6 +55,10 @@ mqtt:
 usb:
   privileged: true
 
+# Restart pods when mounted ConfigMaps/Secrets change (requires Stakater Reloader).
+reloader:
+  enabled: true
+
 resources: {}
 
 nodeSelector: {}

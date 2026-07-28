@@ -20,7 +20,7 @@ ARG PROFILES_REF=main
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
-FROM alpine:3.21 AS profiles
+FROM alpine:3.24 AS profiles
 ARG PROFILES_REPO
 ARG PROFILES_REF
 RUN apk add --no-cache git \

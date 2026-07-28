@@ -60,6 +60,15 @@
 - Do not leave docs describing removed or outdated behaviour.
 - Do not commit operator `config.yaml` (it is gitignored).
 
+## Git and pull requests
+
+- Always create a new feature branch from an up-to-date `main` before making
+  changes. Do not commit on `main` or on an unrelated existing branch.
+- Open changes as a pull request. Fill in
+  [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)
+  completely (what changed and why); do not leave the template blank or omit
+  sections.
+
 ## Commit messages
 
 - Summarize the change in a subject of about 50 characters or fewer.

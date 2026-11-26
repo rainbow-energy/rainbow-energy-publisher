@@ -33,7 +33,9 @@ INFO. When `ha_discovery` is true, retained Home Assistant MQTT sensor
 discovery configs are published once at startup (requires `device_id`).
 Sensors with unit `Wh` or `kWh` are advertised as energy counters
 (`state_class: total_increasing`, `device_class: energy`) for the HA
-Energy dashboard; other sensors use `state_class: measurement`.
+Energy dashboard. Other numeric sensors use `state_class: measurement`
+and a `device_class` derived from unit when known (`W` power, `V`
+voltage, `A` current, `°C` temperature, `Hz` frequency, `%` battery).
 Readable `binary: true` registers are discovered as `binary_sensor`
 entities (`payload_on`/`payload_off` `true`/`false`). String, fault, and
 protocol registers are diagnostic sensors (`entity_category: diagnostic`).

@@ -129,6 +129,7 @@ def test_publish_discovery_writes_ha_sensor_config():
         "unique_id": "inverter-1_battery_soc",
         "unit_of_measurement": "%",
         "state_class": "measurement",
+        "device_class": "battery",
         "device": {
             "identifiers": ["inverter-1"],
             "name": "inverter-1",
@@ -136,6 +137,34 @@ def test_publish_discovery_writes_ha_sensor_config():
             "model": "SYNK-8K-SG05LP1",
         },
     }
+
+
+def test_publish_discovery_maps_units_to_device_class():
+    """Set Home Assistant device_class from common measurement units."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(key="grid_power", name="Grid Power", unit="W"),
+            _read_register(key="battery_voltage", name="Battery Voltage", unit="V"),
+            _read_register(key="battery_current", name="Battery Current", unit="A"),
+            _read_register(key="inverter_temperature", name="Inverter Temperature", unit="°C"),
+            _read_register(key="grid_frequency", name="Grid Frequency", unit="Hz"),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    classes = [
+        json.loads(payload)["device_class"]
+        for _topic, payload, _retain in client.published
+    ]
+    assert classes == ["power", "voltage", "current", "temperature", "frequency"]
 
 
 def test_publish_discovery_marks_energy_counters_for_ha_energy():

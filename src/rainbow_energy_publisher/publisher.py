@@ -19,6 +19,14 @@ def _state_payload(value: object) -> str:
 
 
 _ENERGY_UNITS = frozenset({"Wh", "kWh"})
+_UNIT_DEVICE_CLASSES = {
+    "W": "power",
+    "V": "voltage",
+    "A": "current",
+    "°C": "temperature",
+    "Hz": "frequency",
+    "%": "battery",
+}
 
 
 def _sensor_class_fields(unit: str) -> dict[str, str]:
@@ -28,7 +36,11 @@ def _sensor_class_fields(unit: str) -> dict[str, str]:
             "state_class": "total_increasing",
             "device_class": "energy",
         }
-    return {"state_class": "measurement"}
+    fields = {"state_class": "measurement"}
+    device_class = _UNIT_DEVICE_CLASSES.get(unit)
+    if device_class is not None:
+        fields["device_class"] = device_class
+    return fields
 
 
 def _device_block(

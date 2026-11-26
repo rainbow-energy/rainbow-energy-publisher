@@ -33,7 +33,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-rainbow-energy-modbus-client = { git = "https://github.com/rainbow-energy/rainbow-energy-modbus-client.git", rev = "e8f313b" }
+rainbow-energy-modbus-client = { git = "https://github.com/rainbow-energy/rainbow-energy-modbus-client.git" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rainbow_energy_publisher"]

@@ -443,6 +443,33 @@ def test_control_discovery_config_maps_numeric_to_number():
     assert component == "number"
     assert payload["unit_of_measurement"] == "W"
     assert payload["command_topic"] == "rainbow/energy/export_limit/set"
+    assert "min" not in payload
+    assert "max" not in payload
+    assert "step" not in payload
+
+
+def test_control_discovery_config_uses_profile_number_bounds():
+    """Advertise min/max/step from the profile when present."""
+    register = _write_register(
+        key="battery_shutdown_capacity",
+        name="Battery Shutdown Capacity",
+        unit="%",
+        min=0,
+        max=100,
+        step=1,
+    )
+
+    _component, payload = control_discovery_config(
+        register,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert payload["min"] == 0
+    assert payload["max"] == 100
+    assert payload["step"] == 1
 
 
 def test_control_discovery_config_maps_time_to_text():

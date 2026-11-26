@@ -183,13 +183,17 @@ def _number_discovery(
     register: RegisterDefinition,
 ) -> tuple[str, dict[str, object]]:
     """Map a numeric write register to an HA number."""
-    return (
-        "number",
-        {
-            **base,
-            "unit_of_measurement": register.unit,
-        },
-    )
+    payload: dict[str, object] = {
+        **base,
+        "unit_of_measurement": register.unit,
+    }
+    if register.min is not None:
+        payload["min"] = register.min
+    if register.max is not None:
+        payload["max"] = register.max
+    if register.step is not None:
+        payload["step"] = register.step
+    return ("number", payload)
 
 
 def sensor_discovery_config(

@@ -48,7 +48,7 @@ Modbus write before each poll (payloads coerce like the client CLI:
 `ha_discovery` and `accept_writes` enabled (and `device_id` set), writable
 keys are also discovered as Home Assistant controls: `binary: true` →
 `switch`, `options` → `select`, `time`/`datetime` → `text`, other
-numerics → `number`. The
+numerics → `number` (with profile `min`/`max`/`step` when set). The
 MQTT client reconnects automatically if the broker connection drops while
 the service is running.
 

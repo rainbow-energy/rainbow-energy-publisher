@@ -171,11 +171,29 @@ def _select_discovery(
     )
 
 
+_TIME_PATTERN = r"^([01]?\d|2[0-3]):[0-5]\d$"
+_DATETIME_PATTERN = (
+    r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]) "
+    r"([01]?\d|2[0-3]):[0-5]\d:[0-5]\d$"
+)
+_TEXT_PATTERNS = {
+    "time": _TIME_PATTERN,
+    "datetime": _DATETIME_PATTERN,
+}
+
+
 def _text_discovery(
     base: dict[str, object],
+    register: RegisterDefinition,
 ) -> tuple[str, dict[str, object]]:
     """Map a time/datetime write register to an HA text entity."""
-    return ("text", dict(base))
+    return (
+        "text",
+        {
+            **base,
+            "pattern": _TEXT_PATTERNS[register.data_type],
+        },
+    )
 
 
 def _number_discovery(
@@ -250,7 +268,7 @@ def control_discovery_config(
     if register.options is not None:
         return _select_discovery(base, register)
     if register.data_type in {"time", "datetime"}:
-        return _text_discovery(base)
+        return _text_discovery(base, register)
     return _number_discovery(base, register)
 
 

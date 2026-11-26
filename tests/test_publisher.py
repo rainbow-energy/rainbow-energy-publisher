@@ -485,6 +485,7 @@ def test_control_discovery_config_maps_time_to_text():
     assert component == "text"
     assert payload["command_topic"] == "rainbow/energy/prog1_time/set"
     assert payload["state_topic"] == "rainbow/energy/prog1_time"
+    assert payload["pattern"] == r"^([01]?\d|2[0-3]):[0-5]\d$"
     assert "mode" not in payload
 
 
@@ -507,6 +508,10 @@ def test_control_discovery_config_maps_datetime_to_text():
     assert component == "text"
     assert payload["command_topic"] == "rainbow/energy/date_time/set"
     assert payload["state_topic"] == "rainbow/energy/date_time"
+    assert payload["pattern"] == (
+        r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]) "
+        r"([01]?\d|2[0-3]):[0-5]\d:[0-5]\d$"
+    )
     assert "mode" not in payload
 
 

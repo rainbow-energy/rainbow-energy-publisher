@@ -18,6 +18,19 @@ def _state_payload(value: object) -> str:
     return str(value)
 
 
+_ENERGY_UNITS = frozenset({"Wh", "kWh"})
+
+
+def _sensor_class_fields(unit: str) -> dict[str, str]:
+    """Return HA state_class / device_class fields for a sensor unit."""
+    if unit in _ENERGY_UNITS:
+        return {
+            "state_class": "total_increasing",
+            "device_class": "energy",
+        }
+    return {"state_class": "measurement"}
+
+
 def control_discovery_config(
     register: RegisterDefinition,
     *,
@@ -140,13 +153,13 @@ class MeasurementPublisher:
                 "state_topic": f"{self._topic_prefix}/{measurement.key}",
                 "unique_id": f"{self._device_id}_{measurement.key}",
                 "unit_of_measurement": measurement.unit,
-                "state_class": "measurement",
                 "device": {
                     "identifiers": [self._device_id],
                     "name": self._device_id,
                     "manufacturer": manufacturer,
                     "model": model,
                 },
+                **_sensor_class_fields(measurement.unit),
             }
             self._client.publish(topic, json.dumps(payload), retain=True)
 

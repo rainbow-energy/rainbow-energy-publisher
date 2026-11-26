@@ -31,6 +31,9 @@ Optional publish options: `retain` (default `true`), `device_id`,
 `topic_prefix/<key>` with the measurement value and still logs readings at
 INFO. When `ha_discovery` is true, retained Home Assistant MQTT sensor
 discovery configs are published once at startup (requires `device_id`).
+Sensors with unit `Wh` or `kWh` are advertised as energy counters
+(`state_class: total_increasing`, `device_class: energy`) for the HA
+Energy dashboard; other sensors use `state_class: measurement`.
 When `accept_writes` is true, the service also polls every
 `access: write` register (same interval) so control state topics stay
 current, subscribes to `topic_prefix/<key>/set`, and applies payloads via

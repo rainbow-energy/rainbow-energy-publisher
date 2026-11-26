@@ -124,6 +124,43 @@ def test_publish_discovery_writes_ha_sensor_config():
     }
 
 
+def test_publish_discovery_marks_energy_counters_for_ha_energy():
+    """Use total_increasing + energy device_class for Wh/kWh sensors."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            Measurement(
+                key="day_pv_energy",
+                name="Day PV Energy",
+                value=12.5,
+                unit="kWh",
+            ),
+            Measurement(
+                key="total_grid_import",
+                name="Total Grid Import",
+                value=1000,
+                unit="Wh",
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    payloads = [json.loads(payload) for _topic, payload, _retain in client.published]
+    assert payloads[0]["state_class"] == "total_increasing"
+    assert payloads[0]["device_class"] == "energy"
+    assert payloads[0]["unit_of_measurement"] == "kWh"
+    assert payloads[1]["state_class"] == "total_increasing"
+    assert payloads[1]["device_class"] == "energy"
+    assert payloads[1]["unit_of_measurement"] == "Wh"
+
+
 def test_publish_discovery_skips_when_device_id_missing():
     """Do not publish discovery configs without a configured device_id."""
     client = FakeMqttClient()

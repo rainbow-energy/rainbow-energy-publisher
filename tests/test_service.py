@@ -4,7 +4,11 @@ import logging
 from pathlib import Path
 
 from rainbow_energy_modbus_client.profiles import DeviceProfile, ProfileError, RegisterDefinition
-from rainbow_energy_modbus_client.reader import RegisterData, RegisterReadError
+from rainbow_energy_modbus_client.reader import (
+    RegisterData,
+    RegisterReadError,
+    RegisterWriteError,
+)
 
 from rainbow_energy_publisher.cli import main
 from rainbow_energy_publisher.publisher import MeasurementPublisher
@@ -18,6 +22,7 @@ class FakeReader:
         """Store values returned by reads."""
         self.values = values
         self.reads = 0
+        self.writes: list[tuple[int, tuple[int, ...]]] = []
 
     def read_holding_registers(self, start_address: int, count: int) -> RegisterData:
         """Return canned holding-register values."""
@@ -28,6 +33,12 @@ class FakeReader:
         """Return canned input-register values."""
         self.reads += 1
         return RegisterData(device_id=1, start_address=start_address, values=self.values)
+
+    def write_holding_registers(
+        self, start_address: int, values: tuple[int, ...]
+    ) -> None:
+        """Record holding-register writes."""
+        self.writes.append((start_address, tuple(values)))
 
 
 def _profile() -> DeviceProfile:
@@ -50,6 +61,37 @@ def _profile() -> DeviceProfile:
     )
 
 
+def _profile_with_write() -> DeviceProfile:
+    return DeviceProfile(
+        manufacturer="Example",
+        model="8K",
+        registers=(
+            RegisterDefinition(
+                key="battery_soc",
+                name="Battery SOC",
+                address=184,
+                function="holding",
+                data_type="uint16",
+                scale=1.0,
+                unit="%",
+                access="read",
+                count=1,
+            ),
+            RegisterDefinition(
+                key="export_limit",
+                name="Export Limit",
+                address=200,
+                function="holding",
+                data_type="uint16",
+                scale=1.0,
+                unit="W",
+                access="write",
+                count=1,
+            ),
+        ),
+    )
+
+
 def test_run_service_fetches_measurements_each_tick(caplog):
     """Poll the client on each service tick and log the readings."""
     reader = FakeReader(values=(85,))
@@ -66,6 +108,115 @@ def test_run_service_fetches_measurements_each_tick(caplog):
 
     assert reader.reads == 2
     assert "battery_soc=85.0 %" in caplog.text
+
+
+def test_run_service_writes_queued_mqtt_commands_before_poll():
+    """When mqtt.accept_writes is on, drain /set topics via Client.write before polls."""
+    reader = FakeReader(values=(85,))
+    subscribed: list[str] = []
+
+    class FakeMqtt:
+        def subscribe(self, topic: str, callback) -> None:
+            subscribed.append(topic)
+            callback("rainbow/energy/export_limit/set", "42")
+
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+    sleeps: list[float] = []
+
+    run_service(
+        reader=reader,
+        profile=_profile_with_write(),
+        keys=("battery_soc",),
+        interval=0.5,
+        sleep=lambda seconds: sleeps.append(seconds),
+        iterations=2,
+        accept_writes=True,
+        mqtt_client=FakeMqtt(),
+        topic_prefix="rainbow/energy",
+    )
+
+    assert subscribed == ["rainbow/energy/+/set"]
+    assert reader.writes == [(200, (42,))]
+    assert reader.reads == 2
+    assert sleeps == [0.5]
+
+
+def test_run_service_skips_command_subscribe_when_disabled():
+    """Do not subscribe to /set topics when mqtt.accept_writes is false."""
+    subscribed: list[str] = []
+
+    class FakeMqtt:
+        def subscribe(self, topic: str, callback) -> None:
+            subscribed.append(topic)
+
+    run_service(
+        reader=FakeReader(values=(85,)),
+        profile=_profile_with_write(),
+        keys=("battery_soc",),
+        interval=0.5,
+        sleep=lambda _seconds: None,
+        iterations=1,
+        accept_writes=False,
+        mqtt_client=FakeMqtt(),
+        topic_prefix="rainbow/energy",
+    )
+
+    assert subscribed == []
+
+
+def test_run_service_warns_when_accept_writes_enabled_without_mqtt(caplog):
+    """Warn and skip subscription when accept_writes is on but MQTT is missing."""
+    with caplog.at_level(logging.WARNING):
+        run_service(
+            reader=FakeReader(values=(85,)),
+            profile=_profile_with_write(),
+            keys=("battery_soc",),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+            accept_writes=True,
+            mqtt_client=None,
+            topic_prefix="rainbow/energy",
+        )
+
+    assert "skipping command subscription" in caplog.text
+
+
+def test_run_service_continues_when_command_write_fails(caplog):
+    """Log Modbus write failures from /set topics and keep polling."""
+
+    class BoomWriter(FakeReader):
+        def write_holding_registers(
+            self, start_address: int, values: tuple[int, ...]
+        ) -> None:
+            raise RegisterWriteError("write failed")
+
+    class FakeMqtt:
+        def subscribe(self, topic: str, callback) -> None:
+            callback("rainbow/energy/export_limit/set", "42")
+
+    reader = BoomWriter(values=(85,))
+
+    with caplog.at_level(logging.ERROR):
+        run_service(
+            reader=reader,
+            profile=_profile_with_write(),
+            keys=("battery_soc",),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+            accept_writes=True,
+            mqtt_client=FakeMqtt(),
+            topic_prefix="rainbow/energy",
+        )
+
+    assert "write failed" in caplog.text
+    assert reader.reads == 1
 
 
 def test_run_service_expands_all_keys_to_readable_registers(caplog):
@@ -436,6 +587,9 @@ def test_main_runs_service_from_config(monkeypatch):
     assert ran["publisher"]._retain is True
     assert ran["publisher"].ha_discovery is False
     assert ran["publisher"]._device_id is None
+    assert ran["accept_writes"] is False
+    assert ran["mqtt_client"] is not None
+    assert ran["topic_prefix"] == "rainbow/energy"
 
 
 def test_main_reports_config_errors(tmp_path, capsys):

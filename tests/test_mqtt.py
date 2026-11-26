@@ -102,3 +102,68 @@ def test_connect_mqtt_client_enables_automatic_reconnect(monkeypatch):
 
     assert created["init_kwargs"]["reconnect_on_failure"] is True
     assert created["reconnect_delay"] == (1, 120)
+
+
+def test_mqtt_client_subscribe_registers_topic_callback(monkeypatch):
+    """Subscribe to a topic and deliver matching payloads to the callback."""
+    created: dict = {}
+    seen: list[tuple[str, str]] = []
+
+    class FakePaho:
+        def __init__(self, *args, **kwargs):
+            self._handlers: dict[str, object] = {}
+
+        def reconnect_delay_set(self, min_delay=1, max_delay=120):
+            pass
+
+        def connect(self, host, port=1883, keepalive=60):
+            pass
+
+        def loop_start(self):
+            pass
+
+        def loop_stop(self):
+            pass
+
+        def disconnect(self):
+            pass
+
+        def subscribe(self, topic, qos=0):
+            created["subscribe"] = (topic, qos)
+
+        def message_callback_add(self, topic, callback):
+            self._handlers[topic] = callback
+            created["handler_topic"] = topic
+
+        def publish(self, topic, payload, retain=False):
+            pass
+
+    monkeypatch.setattr("rainbow_energy_publisher.mqtt.mqtt.Client", FakePaho)
+
+    client = connect_mqtt_client(host="mqtt.example", port=1883)
+
+    def on_message(topic: str, payload: str) -> None:
+        seen.append((topic, payload))
+
+    client.subscribe("rainbow/energy/+/set", on_message)
+
+    handler = client._client._handlers["rainbow/energy/+/set"]
+    message = type(
+        "Msg",
+        (),
+        {"topic": "rainbow/energy/grid_charge_enabled/set", "payload": b"true"},
+    )()
+    handler(None, None, message)
+    text_message = type(
+        "Msg",
+        (),
+        {"topic": "rainbow/energy/grid_charge_enabled/set", "payload": "false"},
+    )()
+    handler(None, None, text_message)
+
+    assert created["subscribe"] == ("rainbow/energy/+/set", 0)
+    assert created["handler_topic"] == "rainbow/energy/+/set"
+    assert seen == [
+        ("rainbow/energy/grid_charge_enabled/set", "true"),
+        ("rainbow/energy/grid_charge_enabled/set", "false"),
+    ]

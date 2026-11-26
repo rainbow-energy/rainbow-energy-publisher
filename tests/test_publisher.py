@@ -416,18 +416,24 @@ def test_control_discovery_config_maps_numeric_to_number():
     assert payload["command_topic"] == "rainbow/energy/export_limit/set"
 
 
-def test_control_discovery_config_skips_time_and_datetime():
-    """Do not discover time or datetime writable registers yet."""
-    assert (
-        control_discovery_config(
-            _write_register(key="prog1_time", name="Prog1 Time", data_type="time", unit=""),
-            topic_prefix="rainbow/energy",
-            device_id="inverter-1",
-            manufacturer="Sunsynk",
-            model="8K",
-        )
-        is None
+def test_control_discovery_config_maps_time_to_text():
+    """Map writable time registers to Home Assistant text entities."""
+    component, payload = control_discovery_config(
+        _write_register(key="prog1_time", name="Prog1 Time", data_type="time", unit=""),
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
     )
+
+    assert component == "text"
+    assert payload["command_topic"] == "rainbow/energy/prog1_time/set"
+    assert payload["state_topic"] == "rainbow/energy/prog1_time"
+    assert payload["mode"] == "text"
+
+
+def test_control_discovery_config_skips_datetime():
+    """Do not discover datetime writable registers yet."""
     assert (
         control_discovery_config(
             _write_register(
@@ -506,6 +512,7 @@ def test_publish_control_discovery_writes_ha_configs():
         "homeassistant/switch/inverter-1/grid_charge_enabled/config",
         "homeassistant/number/inverter-1/export_limit/config",
         "homeassistant/select/inverter-1/aux_port_usage/config",
+        "homeassistant/text/inverter-1/prog1_time/config",
     ]
     assert all(retain for _topic, _payload, retain in client.published)
 

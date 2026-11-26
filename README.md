@@ -45,8 +45,9 @@ Modbus write before each poll (payloads coerce like the client CLI:
 `true`/`false` → bool, otherwise int, float, or string). With both
 `ha_discovery` and `accept_writes` enabled (and `device_id` set), writable
 keys are also discovered as Home Assistant controls: `binary: true` →
-`switch`, `options` → `select`, other numerics → `number`. Time and
-datetime registers are writable over MQTT but not discovered yet. The
+`switch`, `options` → `select`, `time` → `text`, other numerics →
+`number`. Datetime registers are writable over MQTT but not discovered
+yet. The
 MQTT client reconnects automatically if the broker connection drops while
 the service is running.
 

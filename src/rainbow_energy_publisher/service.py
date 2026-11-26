@@ -54,7 +54,12 @@ def run_service(
     """Poll measurements until interrupted or iterations complete."""
     configure_logging(log_level)
 
-    resolved_keys = _resolve_keys(profile, keys, all_keys=all_keys)
+    resolved_keys = _resolve_keys(
+        profile,
+        keys,
+        all_keys=all_keys,
+        accept_writes=accept_writes,
+    )
     if resolved_keys is None:
         return
 
@@ -108,6 +113,7 @@ def _resolve_keys(
     keys: Sequence[str],
     *,
     all_keys: bool,
+    accept_writes: bool = False,
 ) -> tuple[str, ...] | None:
     """Expand and filter keys; return None when nothing remains to poll."""
     if all_keys:
@@ -123,6 +129,14 @@ def _resolve_keys(
             logger.warning("unknown key %r; not in profile, skipping", key)
 
     resolved = tuple(key for key in keys if key in known_keys)
+    if accept_writes:
+        already = set(resolved)
+        write_keys = tuple(
+            register.key
+            for register in profile.registers
+            if register.access == "write" and register.key not in already
+        )
+        resolved = resolved + write_keys
     if not resolved:
         logger.error("no known keys left to poll; check config keys against profile")
         return None
@@ -153,7 +167,7 @@ def _publish_discovery_if_enabled(
             unit=registers[key].unit,
         )
         for key in keys
-        if key in registers
+        if key in registers and registers[key].access == "read"
     )
     try:
         publisher.publish_discovery(

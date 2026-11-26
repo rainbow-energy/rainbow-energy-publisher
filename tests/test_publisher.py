@@ -55,6 +55,35 @@ def test_publish_measurements_honours_retain_false():
     ]
 
 
+def test_publish_measurements_formats_bool_as_lowercase_true_false():
+    """Publish boolean values as true/false to match switch command payloads."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(client=client, topic_prefix="rainbow/energy")
+
+    publisher.publish(
+        (
+            Measurement(
+                key="grid_charge_enabled",
+                name="Grid Charge Enabled",
+                value=True,
+                unit="",
+            ),
+            Measurement(
+                key="solar_export",
+                name="Solar Export",
+                value=False,
+                unit="",
+            ),
+        )
+    )
+
+    assert client.published == [
+        ("rainbow/energy/grid_charge_enabled", "true", True),
+        ("rainbow/energy/solar_export", "false", True),
+    ]
+
+
+
 def test_publish_discovery_writes_ha_sensor_config():
     """Publish a retained Home Assistant MQTT discovery config for a sensor."""
     client = FakeMqttClient()

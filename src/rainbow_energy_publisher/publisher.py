@@ -10,6 +10,13 @@ from rainbow_energy_modbus_client.decode import Measurement
 from rainbow_energy_publisher.mqtt import MqttClient
 
 
+def _state_payload(value: object) -> str:
+    """Format a measurement value for MQTT state topics."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
 class MeasurementPublisher:
     """Publish measurement values under a topic prefix."""
 
@@ -45,7 +52,11 @@ class MeasurementPublisher:
         """Publish each measurement value as a string payload on its state topic."""
         for measurement in measurements:
             topic = f"{self._topic_prefix}/{measurement.key}"
-            self._client.publish(topic, str(measurement.value), retain=self._retain)
+            self._client.publish(
+                topic,
+                _state_payload(measurement.value),
+                retain=self._retain,
+            )
 
     def publish_discovery(
         self,

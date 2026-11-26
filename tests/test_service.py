@@ -27,12 +27,27 @@ class FakeReader:
     def read_holding_registers(self, start_address: int, count: int) -> RegisterData:
         """Return canned holding-register values."""
         self.reads += 1
-        return RegisterData(device_id=1, start_address=start_address, values=self.values)
+        return RegisterData(
+            device_id=1,
+            start_address=start_address,
+            values=self._values_for_count(count),
+        )
 
     def read_input_registers(self, start_address: int, count: int) -> RegisterData:
         """Return canned input-register values."""
         self.reads += 1
-        return RegisterData(device_id=1, start_address=start_address, values=self.values)
+        return RegisterData(
+            device_id=1,
+            start_address=start_address,
+            values=self._values_for_count(count),
+        )
+
+    def _values_for_count(self, count: int) -> tuple[int, ...]:
+        """Repeat or truncate canned values to the requested register count."""
+        if count <= len(self.values):
+            return self.values[:count]
+        fill = self.values[-1] if self.values else 0
+        return self.values + (fill,) * (count - len(self.values))
 
     def write_holding_registers(
         self, start_address: int, values: tuple[int, ...]
@@ -108,6 +123,25 @@ def test_run_service_fetches_measurements_each_tick(caplog):
 
     assert reader.reads == 2
     assert "battery_soc=85.0 %" in caplog.text
+
+
+def test_run_service_polls_write_keys_when_accept_writes(caplog):
+    """When accept_writes is on, also poll access:write registers for state."""
+    reader = FakeReader(values=(85,))
+
+    with caplog.at_level(logging.INFO):
+        run_service(
+            reader=reader,
+            profile=_profile_with_write(),
+            keys=("battery_soc",),
+            interval=0.5,
+            sleep=lambda _seconds: None,
+            iterations=1,
+            accept_writes=True,
+        )
+
+    assert "battery_soc=85.0 %" in caplog.text
+    assert "export_limit=85.0 W" in caplog.text
 
 
 def test_run_service_writes_queued_mqtt_commands_before_poll():
@@ -337,6 +371,8 @@ def test_run_service_publishes_discovery_once_at_start():
         ("rainbow/energy/battery_soc", "85.0"),
         ("rainbow/energy/battery_soc", "85.0"),
     ]
+
+
 
 
 def test_run_service_continues_when_publish_fails(caplog):

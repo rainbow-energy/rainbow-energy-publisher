@@ -47,7 +47,7 @@ def run_service(
     log_level: str = DEFAULT_LOG_LEVEL,
     publisher: MeasurementPublisher | None = None,
     all_keys: bool = False,
-    commands_enabled: bool = False,
+    accept_writes: bool = False,
     mqtt_client: MqttClient | None = None,
     topic_prefix: str | None = None,
 ) -> None:
@@ -61,7 +61,7 @@ def run_service(
     client = Client(reader, profile, keys=resolved_keys)
     command_queue = _start_command_subscription(
         profile=profile,
-        commands_enabled=commands_enabled,
+        accept_writes=accept_writes,
         mqtt_client=mqtt_client,
         topic_prefix=topic_prefix,
     )
@@ -79,16 +79,16 @@ def run_service(
 def _start_command_subscription(
     *,
     profile: DeviceProfile,
-    commands_enabled: bool,
+    accept_writes: bool,
     mqtt_client: MqttClient | None,
     topic_prefix: str | None,
 ) -> CommandQueue | None:
-    """Subscribe to MQTT /set topics when commands are enabled."""
-    if not commands_enabled:
+    """Subscribe to MQTT /set topics when accept_writes is enabled."""
+    if not accept_writes:
         return None
     if mqtt_client is None or not topic_prefix:
         logger.warning(
-            "mqtt.commands is enabled but MQTT client or topic_prefix is missing; "
+            "mqtt.accept_writes is enabled but MQTT client or topic_prefix is missing; "
             "skipping command subscription"
         )
         return None

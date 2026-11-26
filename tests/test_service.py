@@ -111,7 +111,7 @@ def test_run_service_fetches_measurements_each_tick(caplog):
 
 
 def test_run_service_writes_queued_mqtt_commands_before_poll():
-    """When mqtt.commands is on, drain /set commands via Client.write before polls."""
+    """When mqtt.accept_writes is on, drain /set topics via Client.write before polls."""
     reader = FakeReader(values=(85,))
     subscribed: list[str] = []
 
@@ -135,7 +135,7 @@ def test_run_service_writes_queued_mqtt_commands_before_poll():
         interval=0.5,
         sleep=lambda seconds: sleeps.append(seconds),
         iterations=2,
-        commands_enabled=True,
+        accept_writes=True,
         mqtt_client=FakeMqtt(),
         topic_prefix="rainbow/energy",
     )
@@ -147,7 +147,7 @@ def test_run_service_writes_queued_mqtt_commands_before_poll():
 
 
 def test_run_service_skips_command_subscribe_when_disabled():
-    """Do not subscribe to command topics when mqtt.commands is false."""
+    """Do not subscribe to /set topics when mqtt.accept_writes is false."""
     subscribed: list[str] = []
 
     class FakeMqtt:
@@ -161,7 +161,7 @@ def test_run_service_skips_command_subscribe_when_disabled():
         interval=0.5,
         sleep=lambda _seconds: None,
         iterations=1,
-        commands_enabled=False,
+        accept_writes=False,
         mqtt_client=FakeMqtt(),
         topic_prefix="rainbow/energy",
     )
@@ -169,8 +169,8 @@ def test_run_service_skips_command_subscribe_when_disabled():
     assert subscribed == []
 
 
-def test_run_service_warns_when_commands_enabled_without_mqtt(caplog):
-    """Warn and skip subscription when commands are on but MQTT is missing."""
+def test_run_service_warns_when_accept_writes_enabled_without_mqtt(caplog):
+    """Warn and skip subscription when accept_writes is on but MQTT is missing."""
     with caplog.at_level(logging.WARNING):
         run_service(
             reader=FakeReader(values=(85,)),
@@ -179,7 +179,7 @@ def test_run_service_warns_when_commands_enabled_without_mqtt(caplog):
             interval=0.5,
             sleep=lambda _seconds: None,
             iterations=1,
-            commands_enabled=True,
+            accept_writes=True,
             mqtt_client=None,
             topic_prefix="rainbow/energy",
         )
@@ -188,7 +188,7 @@ def test_run_service_warns_when_commands_enabled_without_mqtt(caplog):
 
 
 def test_run_service_continues_when_command_write_fails(caplog):
-    """Log Modbus write failures from commands and keep polling."""
+    """Log Modbus write failures from /set topics and keep polling."""
 
     class BoomWriter(FakeReader):
         def write_holding_registers(
@@ -210,7 +210,7 @@ def test_run_service_continues_when_command_write_fails(caplog):
             interval=0.5,
             sleep=lambda _seconds: None,
             iterations=1,
-            commands_enabled=True,
+            accept_writes=True,
             mqtt_client=FakeMqtt(),
             topic_prefix="rainbow/energy",
         )
@@ -587,7 +587,7 @@ def test_main_runs_service_from_config(monkeypatch):
     assert ran["publisher"]._retain is True
     assert ran["publisher"].ha_discovery is False
     assert ran["publisher"]._device_id is None
-    assert ran["commands_enabled"] is False
+    assert ran["accept_writes"] is False
     assert ran["mqtt_client"] is not None
     assert ran["topic_prefix"] == "rainbow/energy"
 

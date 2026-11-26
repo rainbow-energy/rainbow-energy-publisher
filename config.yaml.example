@@ -31,7 +31,7 @@ mqtt:
   # device_id: inverter-1
   # ha_discovery: false
   # discovery_prefix: homeassistant
-  # commands: false
+  # accept_writes: false
   # Optional auth; MQTT_USERNAME / MQTT_PASSWORD env vars override these
   # username: homeassistant
   # password: change-me

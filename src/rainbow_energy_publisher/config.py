@@ -53,7 +53,7 @@ class MqttConfig:
     device_id: str | None
     ha_discovery: bool
     discovery_prefix: str
-    commands: bool
+    accept_writes: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,7 +147,7 @@ def _load_mqtt(raw: object) -> MqttConfig:
         ),
         ha_discovery=bool(mqtt.get("ha_discovery", False)),
         discovery_prefix=str(mqtt.get("discovery_prefix", "homeassistant")),
-        commands=bool(mqtt.get("commands", False)),
+        accept_writes=bool(mqtt.get("accept_writes", False)),
     )
 
 

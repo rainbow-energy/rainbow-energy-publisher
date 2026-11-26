@@ -27,11 +27,11 @@ optional `username` / `password`). Prefer `MQTT_USERNAME` /
 `MQTT_PASSWORD` env vars over putting secrets in YAML.
 Optional publish options: `retain` (default `true`), `device_id`,
 `ha_discovery` (default `false`), `discovery_prefix` (default
-`homeassistant`), and `commands` (default `false`). Each poll publishes
+`homeassistant`), and `accept_writes` (default `false`). Each poll publishes
 `topic_prefix/<key>` with the measurement value and still logs readings at
 INFO. When `ha_discovery` is true, retained Home Assistant MQTT sensor
 discovery configs are published once at startup (requires `device_id`).
-When `commands` is true, the service subscribes to
+When `accept_writes` is true, the service subscribes to
 `topic_prefix/<key>/set` for every profile register with `access: write`
 and applies payloads via Modbus write before each poll (payloads coerce
 like the client CLI: `true`/`false` → bool, otherwise int, float, or

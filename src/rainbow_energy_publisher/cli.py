@@ -130,7 +130,7 @@ def _run_with_modbus(
                 interval=config.interval,
                 log_level=config.log_level,
                 publisher=publisher,
-                commands_enabled=config.mqtt.commands,
+                accept_writes=config.mqtt.accept_writes,
                 mqtt_client=mqtt_client,
                 topic_prefix=config.mqtt.topic_prefix,
             )

@@ -58,6 +58,140 @@ def _device_block(
     }
 
 
+def _base_discovery_config(
+    register: RegisterDefinition,
+    *,
+    topic_prefix: str,
+    device_id: str,
+    manufacturer: str,
+    model: str,
+    command: bool = False,
+) -> dict[str, object]:
+    """Build the shared HA discovery fields for a register."""
+    prefix = topic_prefix.rstrip("/")
+    payload: dict[str, object] = {
+        "name": register.name,
+        "state_topic": f"{prefix}/{register.key}",
+        "unique_id": f"{device_id}_{register.key}",
+        "device": _device_block(
+            device_id=device_id,
+            manufacturer=manufacturer,
+            model=model,
+        ),
+    }
+    if command:
+        payload["command_topic"] = f"{prefix}/{register.key}/set"
+    return payload
+
+
+def _binary_sensor_discovery(
+    base: dict[str, object],
+) -> tuple[str, dict[str, object]]:
+    """Map a binary read register to an HA binary_sensor."""
+    return (
+        "binary_sensor",
+        {
+            **base,
+            "payload_on": "true",
+            "payload_off": "false",
+        },
+    )
+
+
+def _diagnostic_sensor_discovery(
+    base: dict[str, object],
+) -> tuple[str, dict[str, object]]:
+    """Map string/fault/protocol reads to a diagnostic sensor."""
+    return (
+        "sensor",
+        {
+            **base,
+            "entity_category": "diagnostic",
+        },
+    )
+
+
+def _enum_sensor_discovery(
+    base: dict[str, object],
+    register: RegisterDefinition,
+) -> tuple[str, dict[str, object]]:
+    """Map an options read register to an HA enum sensor."""
+    assert register.options is not None
+    return (
+        "sensor",
+        {
+            **base,
+            "device_class": "enum",
+            "options": list(register.options.values()),
+        },
+    )
+
+
+def _numeric_sensor_discovery(
+    base: dict[str, object],
+    register: RegisterDefinition,
+) -> tuple[str, dict[str, object]]:
+    """Map a numeric read register to an HA sensor with unit classes."""
+    return (
+        "sensor",
+        {
+            **base,
+            "unit_of_measurement": register.unit,
+            **_sensor_class_fields(register.unit),
+        },
+    )
+
+
+def _switch_discovery(
+    base: dict[str, object],
+) -> tuple[str, dict[str, object]]:
+    """Map a binary write register to an HA switch."""
+    return (
+        "switch",
+        {
+            **base,
+            "payload_on": "true",
+            "payload_off": "false",
+        },
+    )
+
+
+def _select_discovery(
+    base: dict[str, object],
+    register: RegisterDefinition,
+) -> tuple[str, dict[str, object]]:
+    """Map an options write register to an HA select."""
+    assert register.options is not None
+    return (
+        "select",
+        {
+            **base,
+            "options": list(register.options.values()),
+        },
+    )
+
+
+def _text_discovery(
+    base: dict[str, object],
+) -> tuple[str, dict[str, object]]:
+    """Map a time/datetime write register to an HA text entity."""
+    return ("text", dict(base))
+
+
+def _number_discovery(
+    base: dict[str, object],
+    register: RegisterDefinition,
+) -> tuple[str, dict[str, object]]:
+    """Map a numeric write register to an HA number."""
+    return (
+        "number",
+        {
+            **base,
+            "unit_of_measurement": register.unit,
+        },
+    )
+
+
 def sensor_discovery_config(
     register: RegisterDefinition,
     *,
@@ -67,53 +201,20 @@ def sensor_discovery_config(
     model: str,
 ) -> tuple[str, dict[str, object]]:
     """Return HA component name and discovery payload for a readable register."""
-    prefix = topic_prefix.rstrip("/")
-    state_topic = f"{prefix}/{register.key}"
-    device = _device_block(
+    base = _base_discovery_config(
+        register,
+        topic_prefix=topic_prefix,
         device_id=device_id,
         manufacturer=manufacturer,
         model=model,
     )
-    base = {
-        "name": register.name,
-        "state_topic": state_topic,
-        "unique_id": f"{device_id}_{register.key}",
-        "device": device,
-    }
     if register.binary:
-        return (
-            "binary_sensor",
-            {
-                **base,
-                "payload_on": "true",
-                "payload_off": "false",
-            },
-        )
+        return _binary_sensor_discovery(base)
     if register.data_type in {"string", "fault", "protocol"}:
-        return (
-            "sensor",
-            {
-                **base,
-                "entity_category": "diagnostic",
-            },
-        )
+        return _diagnostic_sensor_discovery(base)
     if register.options is not None:
-        return (
-            "sensor",
-            {
-                **base,
-                "device_class": "enum",
-                "options": list(register.options.values()),
-            },
-        )
-    return (
-        "sensor",
-        {
-            **base,
-            "unit_of_measurement": register.unit,
-            **_sensor_class_fields(register.unit),
-        },
-    )
+        return _enum_sensor_discovery(base, register)
+    return _numeric_sensor_discovery(base, register)
 
 
 def control_discovery_config(
@@ -132,48 +233,21 @@ def control_discovery_config(
     if register.access != "write":
         return None
 
-    prefix = topic_prefix.rstrip("/")
-    state_topic = f"{prefix}/{register.key}"
-    command_topic = f"{prefix}/{register.key}/set"
-    device = _device_block(
+    base = _base_discovery_config(
+        register,
+        topic_prefix=topic_prefix,
         device_id=device_id,
         manufacturer=manufacturer,
         model=model,
+        command=True,
     )
-    base = {
-        "name": register.name,
-        "state_topic": state_topic,
-        "command_topic": command_topic,
-        "unique_id": f"{device_id}_{register.key}",
-        "device": device,
-    }
-
     if register.binary:
-        return (
-            "switch",
-            {
-                **base,
-                "payload_on": "true",
-                "payload_off": "false",
-            },
-        )
+        return _switch_discovery(base)
     if register.options is not None:
-        return (
-            "select",
-            {
-                **base,
-                "options": list(register.options.values()),
-            },
-        )
+        return _select_discovery(base, register)
     if register.data_type in {"time", "datetime"}:
-        return ("text", dict(base))
-    return (
-        "number",
-        {
-            **base,
-            "unit_of_measurement": register.unit,
-        },
-    )
+        return _text_discovery(base)
+    return _number_discovery(base, register)
 
 
 class MeasurementPublisher:
@@ -217,6 +291,13 @@ class MeasurementPublisher:
                 retain=self._retain,
             )
 
+    def _discovery_topic(self, component: str, key: str) -> str:
+        """Build the retained Home Assistant discovery config topic."""
+        return (
+            f"{self._discovery_prefix}/{component}/"
+            f"{self._device_id}/{key}/config"
+        )
+
     def publish_discovery(
         self,
         registers: Sequence[RegisterDefinition],
@@ -235,11 +316,11 @@ class MeasurementPublisher:
                 manufacturer=manufacturer,
                 model=model,
             )
-            topic = (
-                f"{self._discovery_prefix}/{component}/"
-                f"{self._device_id}/{register.key}/config"
+            self._client.publish(
+                self._discovery_topic(component, register.key),
+                json.dumps(payload),
+                retain=True,
             )
-            self._client.publish(topic, json.dumps(payload), retain=True)
 
     def publish_control_discovery(
         self,
@@ -262,8 +343,8 @@ class MeasurementPublisher:
             if mapped is None:
                 continue
             component, payload = mapped
-            topic = (
-                f"{self._discovery_prefix}/{component}/"
-                f"{self._device_id}/{register.key}/config"
+            self._client.publish(
+                self._discovery_topic(component, register.key),
+                json.dumps(payload),
+                retain=True,
             )
-            self._client.publish(topic, json.dumps(payload), retain=True)

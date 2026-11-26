@@ -31,13 +31,17 @@ Optional publish options: `retain` (default `true`), `device_id`,
 `topic_prefix/<key>` with the measurement value and still logs readings at
 INFO. When `ha_discovery` is true, retained Home Assistant MQTT sensor
 discovery configs are published once at startup (requires `device_id`).
-When `accept_writes` is true, the service subscribes to
-`topic_prefix/<key>/set` for every profile register with `access: write`
-and applies payloads via Modbus write before each poll (payloads coerce
-like the client CLI: `true`/`false` → bool, otherwise int, float, or
-string). Home Assistant switch/number discovery for writable keys is not
-published yet. The MQTT client reconnects automatically if the broker
-connection drops while the service is running.
+When `accept_writes` is true, the service also polls every
+`access: write` register (same interval) so control state topics stay
+current, subscribes to `topic_prefix/<key>/set`, and applies payloads via
+Modbus write before each poll (payloads coerce like the client CLI:
+`true`/`false` → bool, otherwise int, float, or string). With both
+`ha_discovery` and `accept_writes` enabled (and `device_id` set), writable
+keys are also discovered as Home Assistant controls: `binary: true` →
+`switch`, `options` → `select`, other numerics → `number`. Time and
+datetime registers are writable over MQTT but not discovered yet. The
+MQTT client reconnects automatically if the broker connection drops while
+the service is running.
 
 All Make targets run through Docker:
 

@@ -6,6 +6,7 @@ import json
 from collections.abc import Sequence
 
 from rainbow_energy_modbus_client.decode import Measurement
+from rainbow_energy_modbus_client.profiles import RegisterDefinition
 
 from rainbow_energy_publisher.mqtt import MqttClient
 
@@ -15,6 +16,67 @@ def _state_payload(value: object) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     return str(value)
+
+
+def control_discovery_config(
+    register: RegisterDefinition,
+    *,
+    topic_prefix: str,
+    device_id: str,
+    manufacturer: str,
+    model: str,
+) -> tuple[str, dict[str, object]] | None:
+    """Return HA component name and discovery payload for a writable register.
+
+    Maps binary registers to switch, options to select, and other numerics to
+    number. Skips time/datetime (and non-writable) registers.
+    """
+    if register.access != "write":
+        return None
+    if register.data_type in {"time", "datetime"}:
+        return None
+
+    prefix = topic_prefix.rstrip("/")
+    state_topic = f"{prefix}/{register.key}"
+    command_topic = f"{prefix}/{register.key}/set"
+    device = {
+        "identifiers": [device_id],
+        "name": device_id,
+        "manufacturer": manufacturer,
+        "model": model,
+    }
+    base = {
+        "name": register.name,
+        "state_topic": state_topic,
+        "command_topic": command_topic,
+        "unique_id": f"{device_id}_{register.key}",
+        "device": device,
+    }
+
+    if register.binary:
+        return (
+            "switch",
+            {
+                **base,
+                "payload_on": "true",
+                "payload_off": "false",
+            },
+        )
+    if register.options is not None:
+        return (
+            "select",
+            {
+                **base,
+                "options": list(register.options.values()),
+            },
+        )
+    return (
+        "number",
+        {
+            **base,
+            "unit_of_measurement": register.unit,
+        },
+    )
 
 
 class MeasurementPublisher:
@@ -86,4 +148,31 @@ class MeasurementPublisher:
                     "model": model,
                 },
             }
+            self._client.publish(topic, json.dumps(payload), retain=True)
+
+    def publish_control_discovery(
+        self,
+        registers: Sequence[RegisterDefinition],
+        *,
+        manufacturer: str,
+        model: str,
+    ) -> None:
+        """Publish retained HA switch/number/select configs for writable registers."""
+        if self._device_id is None:
+            return
+        for register in registers:
+            mapped = control_discovery_config(
+                register,
+                topic_prefix=self._topic_prefix,
+                device_id=self._device_id,
+                manufacturer=manufacturer,
+                model=model,
+            )
+            if mapped is None:
+                continue
+            component, payload = mapped
+            topic = (
+                f"{self._discovery_prefix}/{component}/"
+                f"{self._device_id}/{register.key}/config"
+            )
             self._client.publish(topic, json.dumps(payload), retain=True)

@@ -373,6 +373,111 @@ def test_run_service_publishes_discovery_once_at_start():
     ]
 
 
+def test_run_service_publishes_control_discovery_when_accept_writes():
+    """Publish switch/number/select discovery when ha_discovery and accept_writes."""
+    published: list[str] = []
+
+    class FakeMqtt:
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
+            published.append(topic)
+
+        def subscribe(self, topic: str, callback) -> None:
+            return None
+
+    profile = DeviceProfile(
+        manufacturer="Example",
+        model="8K",
+        registers=(
+            RegisterDefinition(
+                key="battery_soc",
+                name="Battery SOC",
+                address=184,
+                function="holding",
+                data_type="uint16",
+                scale=1.0,
+                unit="%",
+                access="read",
+                count=1,
+            ),
+            RegisterDefinition(
+                key="grid_charge_enabled",
+                name="Grid Charge Enabled",
+                address=232,
+                function="holding",
+                data_type="uint16",
+                scale=1.0,
+                unit="",
+                access="write",
+                count=1,
+                binary=True,
+                bitmask=0x1,
+            ),
+            RegisterDefinition(
+                key="export_limit",
+                name="Export Limit",
+                address=200,
+                function="holding",
+                data_type="uint16",
+                scale=1.0,
+                unit="W",
+                access="write",
+                count=1,
+            ),
+        ),
+    )
+
+    run_service(
+        reader=FakeReader(values=(85,)),
+        profile=profile,
+        keys=("battery_soc",),
+        interval=0.5,
+        sleep=lambda _seconds: None,
+        iterations=1,
+        accept_writes=True,
+        mqtt_client=FakeMqtt(),
+        topic_prefix="rainbow/energy",
+        publisher=MeasurementPublisher(
+            client=FakeMqtt(),
+            topic_prefix="rainbow/energy",
+            device_id="inverter-1",
+            ha_discovery=True,
+        ),
+    )
+
+    config_topics = [topic for topic in published if topic.endswith("/config")]
+    assert config_topics == [
+        "homeassistant/sensor/inverter-1/battery_soc/config",
+        "homeassistant/switch/inverter-1/grid_charge_enabled/config",
+        "homeassistant/number/inverter-1/export_limit/config",
+    ]
+
+
+def test_run_service_skips_control_discovery_without_accept_writes():
+    """Do not publish control discovery when accept_writes is false."""
+    published: list[str] = []
+
+    class FakeMqtt:
+        def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
+            published.append(topic)
+
+    run_service(
+        reader=FakeReader(values=(85,)),
+        profile=_profile_with_write(),
+        keys=("battery_soc",),
+        interval=0.5,
+        sleep=lambda _seconds: None,
+        iterations=1,
+        accept_writes=False,
+        publisher=MeasurementPublisher(
+            client=FakeMqtt(),
+            topic_prefix="rainbow/energy",
+            device_id="inverter-1",
+            ha_discovery=True,
+        ),
+    )
+
+    config_topics = [topic for topic in published if topic.endswith("/config")]
+    assert config_topics == ["homeassistant/sensor/inverter-1/battery_soc/config"]
 
 
 def test_run_service_continues_when_publish_fails(caplog):

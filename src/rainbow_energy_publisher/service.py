@@ -70,7 +70,12 @@ def run_service(
         mqtt_client=mqtt_client,
         topic_prefix=topic_prefix,
     )
-    _publish_discovery_if_enabled(publisher, profile, resolved_keys)
+    _publish_discovery_if_enabled(
+        publisher,
+        profile,
+        resolved_keys,
+        accept_writes=accept_writes,
+    )
     _run_poll_loop(
         client,
         publisher=publisher,
@@ -147,6 +152,8 @@ def _publish_discovery_if_enabled(
     publisher: MeasurementPublisher | None,
     profile: DeviceProfile,
     keys: Sequence[str],
+    *,
+    accept_writes: bool = False,
 ) -> None:
     """Publish Home Assistant discovery configs once when configured."""
     if publisher is None or not publisher.ha_discovery:
@@ -175,6 +182,16 @@ def _publish_discovery_if_enabled(
             manufacturer=profile.manufacturer,
             model=profile.model,
         )
+        if accept_writes:
+            publisher.publish_control_discovery(
+                tuple(
+                    register
+                    for register in profile.registers
+                    if register.access == "write"
+                ),
+                manufacturer=profile.manufacturer,
+                model=profile.model,
+            )
     except OSError as error:
         logger.error("discovery publish failed: %s", error, exc_info=error)
 

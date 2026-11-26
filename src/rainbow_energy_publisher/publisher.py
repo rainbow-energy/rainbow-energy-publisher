@@ -77,6 +77,14 @@ def sensor_discovery_config(
                 "payload_off": "false",
             },
         )
+    if register.data_type == "string":
+        return (
+            "sensor",
+            {
+                **base,
+                "entity_category": "diagnostic",
+            },
+        )
     return (
         "sensor",
         {

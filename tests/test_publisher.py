@@ -217,6 +217,39 @@ def test_publish_discovery_maps_binary_reads_to_binary_sensor():
     }
 
 
+def test_publish_discovery_marks_string_reads_as_diagnostic():
+    """Publish string read registers as diagnostic sensors without state_class."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="serial",
+                name="Serial",
+                unit="",
+                data_type="string",
+                scale=None,
+                count=5,
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert len(client.published) == 1
+    topic, payload, _retain = client.published[0]
+    assert topic == "homeassistant/sensor/inverter-1/serial/config"
+    body = json.loads(payload)
+    assert body["entity_category"] == "diagnostic"
+    assert "state_class" not in body
+    assert "unit_of_measurement" not in body or body["unit_of_measurement"] == ""
+
+
 def test_publish_discovery_skips_when_device_id_missing():
     """Do not publish discovery configs without a configured device_id."""
     client = FakeMqttClient()

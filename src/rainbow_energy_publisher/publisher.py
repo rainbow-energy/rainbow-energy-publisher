@@ -85,6 +85,15 @@ def sensor_discovery_config(
                 "entity_category": "diagnostic",
             },
         )
+    if register.options is not None:
+        return (
+            "sensor",
+            {
+                **base,
+                "device_class": "enum",
+                "options": list(register.options.values()),
+            },
+        )
     return (
         "sensor",
         {

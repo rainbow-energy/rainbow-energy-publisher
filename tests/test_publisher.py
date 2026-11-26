@@ -250,6 +250,37 @@ def test_publish_discovery_marks_string_reads_as_diagnostic():
     assert "unit_of_measurement" not in body or body["unit_of_measurement"] == ""
 
 
+def test_publish_discovery_maps_options_reads_to_enum_sensor():
+    """Publish options read registers as enum sensors with option labels."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="overall_state",
+                name="Overall State",
+                unit="",
+                options={0: "Standby", 1: "Online", 2: "Offline"},
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert len(client.published) == 1
+    topic, payload, _retain = client.published[0]
+    assert topic == "homeassistant/sensor/inverter-1/overall_state/config"
+    body = json.loads(payload)
+    assert body["device_class"] == "enum"
+    assert body["options"] == ["Standby", "Online", "Offline"]
+    assert "state_class" not in body
+
+
 def test_publish_discovery_skips_when_device_id_missing():
     """Do not publish discovery configs without a configured device_id."""
     client = FakeMqttClient()

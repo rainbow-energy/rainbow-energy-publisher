@@ -429,27 +429,29 @@ def test_control_discovery_config_maps_time_to_text():
     assert component == "text"
     assert payload["command_topic"] == "rainbow/energy/prog1_time/set"
     assert payload["state_topic"] == "rainbow/energy/prog1_time"
-    assert payload["mode"] == "text"
+    assert "mode" not in payload
 
 
-def test_control_discovery_config_skips_datetime():
-    """Do not discover datetime writable registers yet."""
-    assert (
-        control_discovery_config(
-            _write_register(
-                key="date_time",
-                name="Date Time",
-                data_type="datetime",
-                count=3,
-                unit="",
-            ),
-            topic_prefix="rainbow/energy",
-            device_id="inverter-1",
-            manufacturer="Sunsynk",
-            model="8K",
-        )
-        is None
+def test_control_discovery_config_maps_datetime_to_text():
+    """Map writable datetime registers to Home Assistant text entities."""
+    component, payload = control_discovery_config(
+        _write_register(
+            key="date_time",
+            name="Date Time",
+            data_type="datetime",
+            count=3,
+            unit="",
+        ),
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
     )
+
+    assert component == "text"
+    assert payload["command_topic"] == "rainbow/energy/date_time/set"
+    assert payload["state_topic"] == "rainbow/energy/date_time"
+    assert "mode" not in payload
 
 
 def test_control_discovery_config_skips_non_writable_registers():
@@ -502,6 +504,14 @@ def test_publish_control_discovery_writes_ha_configs():
                 options={0: "Disable", 1: "Smartload"},
             ),
             _write_register(key="prog1_time", name="Prog1 Time", data_type="time", unit=""),
+            _write_register(
+                key="date_time",
+                name="Date Time",
+                data_type="datetime",
+                count=3,
+                unit="",
+            ),
+            _read_register(),
         ),
         manufacturer="Sunsynk",
         model="8K",
@@ -513,6 +523,7 @@ def test_publish_control_discovery_writes_ha_configs():
         "homeassistant/number/inverter-1/export_limit/config",
         "homeassistant/select/inverter-1/aux_port_usage/config",
         "homeassistant/text/inverter-1/prog1_time/config",
+        "homeassistant/text/inverter-1/date_time/config",
     ]
     assert all(retain for _topic, _payload, retain in client.published)
 

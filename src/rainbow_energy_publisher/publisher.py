@@ -114,12 +114,10 @@ def control_discovery_config(
 ) -> tuple[str, dict[str, object]] | None:
     """Return HA component name and discovery payload for a writable register.
 
-    Maps binary registers to switch, options to select, time to text, and other
-    numerics to number. Skips datetime (and non-writable) registers.
+    Maps binary registers to switch, options to select, time/datetime to text,
+    and other numerics to number. Skips non-writable registers.
     """
     if register.access != "write":
-        return None
-    if register.data_type == "datetime":
         return None
 
     prefix = topic_prefix.rstrip("/")
@@ -155,14 +153,8 @@ def control_discovery_config(
                 "options": list(register.options.values()),
             },
         )
-    if register.data_type == "time":
-        return (
-            "text",
-            {
-                **base,
-                "mode": "text",
-            },
-        )
+    if register.data_type in {"time", "datetime"}:
+        return ("text", dict(base))
     return (
         "number",
         {

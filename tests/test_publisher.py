@@ -87,6 +87,22 @@ def test_publish_measurements_formats_bool_as_lowercase_true_false():
     ]
 
 
+def _read_register(**overrides) -> RegisterDefinition:
+    values = {
+        "key": "battery_soc",
+        "name": "Battery SOC",
+        "address": 184,
+        "function": "holding",
+        "data_type": "uint16",
+        "scale": 1.0,
+        "unit": "%",
+        "access": "read",
+        "count": 1,
+    }
+    values.update(overrides)
+    return RegisterDefinition(**values)
+
+
 def test_publish_discovery_writes_ha_sensor_config():
     """Publish a retained Home Assistant MQTT discovery config for a sensor."""
     client = FakeMqttClient()
@@ -98,9 +114,7 @@ def test_publish_discovery_writes_ha_sensor_config():
     )
 
     publisher.publish_discovery(
-        (
-            Measurement(key="battery_soc", name="Battery SOC", value=85.0, unit="%"),
-        ),
+        (_read_register(),),
         manufacturer="Sunsynk",
         model="SYNK-8K-SG05LP1",
     )
@@ -135,17 +149,18 @@ def test_publish_discovery_marks_energy_counters_for_ha_energy():
 
     publisher.publish_discovery(
         (
-            Measurement(
+            _read_register(
                 key="day_pv_energy",
                 name="Day PV Energy",
-                value=12.5,
                 unit="kWh",
+                data_type="uint16",
             ),
-            Measurement(
+            _read_register(
                 key="total_grid_import",
                 name="Total Grid Import",
-                value=1000,
                 unit="Wh",
+                data_type="uint32",
+                count=2,
             ),
         ),
         manufacturer="Sunsynk",
@@ -161,13 +176,54 @@ def test_publish_discovery_marks_energy_counters_for_ha_energy():
     assert payloads[1]["unit_of_measurement"] == "Wh"
 
 
+def test_publish_discovery_maps_binary_reads_to_binary_sensor():
+    """Publish binary read registers as Home Assistant binary_sensor entities."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="grid_connected",
+                name="Grid Connected",
+                unit="",
+                binary=True,
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert len(client.published) == 1
+    topic, payload, retain = client.published[0]
+    assert topic == "homeassistant/binary_sensor/inverter-1/grid_connected/config"
+    assert retain is True
+    assert json.loads(payload) == {
+        "name": "Grid Connected",
+        "state_topic": "rainbow/energy/grid_connected",
+        "unique_id": "inverter-1_grid_connected",
+        "payload_on": "true",
+        "payload_off": "false",
+        "device": {
+            "identifiers": ["inverter-1"],
+            "name": "inverter-1",
+            "manufacturer": "Sunsynk",
+            "model": "8K",
+        },
+    }
+
+
 def test_publish_discovery_skips_when_device_id_missing():
     """Do not publish discovery configs without a configured device_id."""
     client = FakeMqttClient()
     publisher = MeasurementPublisher(client=client, topic_prefix="rainbow/energy")
 
     publisher.publish_discovery(
-        (Measurement(key="battery_soc", name="Battery SOC", value=85.0, unit="%"),),
+        (_read_register(),),
         manufacturer="Sunsynk",
         model="SYNK-8K-SG05LP1",
     )

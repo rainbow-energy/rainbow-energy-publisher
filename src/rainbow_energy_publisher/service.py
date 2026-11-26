@@ -166,19 +166,14 @@ def _publish_discovery_if_enabled(
         return
 
     registers = {register.key: register for register in profile.registers}
-    discovery_measurements = tuple(
-        Measurement(
-            key=key,
-            name=registers[key].name,
-            value=0,
-            unit=registers[key].unit,
-        )
+    discovery_registers = tuple(
+        registers[key]
         for key in keys
         if key in registers and registers[key].access == "read"
     )
     try:
         publisher.publish_discovery(
-            discovery_measurements,
+            discovery_registers,
             manufacturer=profile.manufacturer,
             model=profile.model,
         )

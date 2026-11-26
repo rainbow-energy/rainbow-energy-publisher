@@ -31,6 +31,62 @@ def _sensor_class_fields(unit: str) -> dict[str, str]:
     return {"state_class": "measurement"}
 
 
+def _device_block(
+    *,
+    device_id: str,
+    manufacturer: str,
+    model: str,
+) -> dict[str, object]:
+    """Build the shared Home Assistant device discovery block."""
+    return {
+        "identifiers": [device_id],
+        "name": device_id,
+        "manufacturer": manufacturer,
+        "model": model,
+    }
+
+
+def sensor_discovery_config(
+    register: RegisterDefinition,
+    *,
+    topic_prefix: str,
+    device_id: str,
+    manufacturer: str,
+    model: str,
+) -> tuple[str, dict[str, object]]:
+    """Return HA component name and discovery payload for a readable register."""
+    prefix = topic_prefix.rstrip("/")
+    state_topic = f"{prefix}/{register.key}"
+    device = _device_block(
+        device_id=device_id,
+        manufacturer=manufacturer,
+        model=model,
+    )
+    base = {
+        "name": register.name,
+        "state_topic": state_topic,
+        "unique_id": f"{device_id}_{register.key}",
+        "device": device,
+    }
+    if register.binary:
+        return (
+            "binary_sensor",
+            {
+                **base,
+                "payload_on": "true",
+                "payload_off": "false",
+            },
+        )
+    return (
+        "sensor",
+        {
+            **base,
+            "unit_of_measurement": register.unit,
+            **_sensor_class_fields(register.unit),
+        },
+    )
+
+
 def control_discovery_config(
     register: RegisterDefinition,
     *,
@@ -52,12 +108,11 @@ def control_discovery_config(
     prefix = topic_prefix.rstrip("/")
     state_topic = f"{prefix}/{register.key}"
     command_topic = f"{prefix}/{register.key}/set"
-    device = {
-        "identifiers": [device_id],
-        "name": device_id,
-        "manufacturer": manufacturer,
-        "model": model,
-    }
+    device = _device_block(
+        device_id=device_id,
+        manufacturer=manufacturer,
+        model=model,
+    )
     base = {
         "name": register.name,
         "state_topic": state_topic,
@@ -135,7 +190,7 @@ class MeasurementPublisher:
 
     def publish_discovery(
         self,
-        measurements: Sequence[Measurement],
+        registers: Sequence[RegisterDefinition],
         *,
         manufacturer: str,
         model: str,
@@ -143,24 +198,18 @@ class MeasurementPublisher:
         """Publish retained Home Assistant MQTT discovery configs for sensors."""
         if self._device_id is None:
             return
-        for measurement in measurements:
-            topic = (
-                f"{self._discovery_prefix}/sensor/"
-                f"{self._device_id}/{measurement.key}/config"
+        for register in registers:
+            component, payload = sensor_discovery_config(
+                register,
+                topic_prefix=self._topic_prefix,
+                device_id=self._device_id,
+                manufacturer=manufacturer,
+                model=model,
             )
-            payload = {
-                "name": measurement.name,
-                "state_topic": f"{self._topic_prefix}/{measurement.key}",
-                "unique_id": f"{self._device_id}_{measurement.key}",
-                "unit_of_measurement": measurement.unit,
-                "device": {
-                    "identifiers": [self._device_id],
-                    "name": self._device_id,
-                    "manufacturer": manufacturer,
-                    "model": model,
-                },
-                **_sensor_class_fields(measurement.unit),
-            }
+            topic = (
+                f"{self._discovery_prefix}/{component}/"
+                f"{self._device_id}/{register.key}/config"
+            )
             self._client.publish(topic, json.dumps(payload), retain=True)
 
     def publish_control_discovery(

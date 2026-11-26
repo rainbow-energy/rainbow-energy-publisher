@@ -54,7 +54,12 @@ def run_service(
     """Poll measurements until interrupted or iterations complete."""
     configure_logging(log_level)
 
-    resolved_keys = _resolve_keys(profile, keys, all_keys=all_keys)
+    resolved_keys = _resolve_keys(
+        profile,
+        keys,
+        all_keys=all_keys,
+        accept_writes=accept_writes,
+    )
     if resolved_keys is None:
         return
 
@@ -65,7 +70,12 @@ def run_service(
         mqtt_client=mqtt_client,
         topic_prefix=topic_prefix,
     )
-    _publish_discovery_if_enabled(publisher, profile, resolved_keys)
+    _publish_discovery_if_enabled(
+        publisher,
+        profile,
+        resolved_keys,
+        accept_writes=accept_writes,
+    )
     _run_poll_loop(
         client,
         publisher=publisher,
@@ -108,6 +118,7 @@ def _resolve_keys(
     keys: Sequence[str],
     *,
     all_keys: bool,
+    accept_writes: bool = False,
 ) -> tuple[str, ...] | None:
     """Expand and filter keys; return None when nothing remains to poll."""
     if all_keys:
@@ -123,6 +134,14 @@ def _resolve_keys(
             logger.warning("unknown key %r; not in profile, skipping", key)
 
     resolved = tuple(key for key in keys if key in known_keys)
+    if accept_writes:
+        already = set(resolved)
+        write_keys = tuple(
+            register.key
+            for register in profile.registers
+            if register.access == "write" and register.key not in already
+        )
+        resolved = resolved + write_keys
     if not resolved:
         logger.error("no known keys left to poll; check config keys against profile")
         return None
@@ -133,6 +152,8 @@ def _publish_discovery_if_enabled(
     publisher: MeasurementPublisher | None,
     profile: DeviceProfile,
     keys: Sequence[str],
+    *,
+    accept_writes: bool = False,
 ) -> None:
     """Publish Home Assistant discovery configs once when configured."""
     if publisher is None or not publisher.ha_discovery:
@@ -145,22 +166,27 @@ def _publish_discovery_if_enabled(
         return
 
     registers = {register.key: register for register in profile.registers}
-    discovery_measurements = tuple(
-        Measurement(
-            key=key,
-            name=registers[key].name,
-            value=0,
-            unit=registers[key].unit,
-        )
+    discovery_registers = tuple(
+        registers[key]
         for key in keys
-        if key in registers
+        if key in registers and registers[key].access == "read"
     )
     try:
         publisher.publish_discovery(
-            discovery_measurements,
+            discovery_registers,
             manufacturer=profile.manufacturer,
             model=profile.model,
         )
+        if accept_writes:
+            publisher.publish_control_discovery(
+                tuple(
+                    register
+                    for register in profile.registers
+                    if register.access == "write"
+                ),
+                manufacturer=profile.manufacturer,
+                model=profile.model,
+            )
     except OSError as error:
         logger.error("discovery publish failed: %s", error, exc_info=error)
 

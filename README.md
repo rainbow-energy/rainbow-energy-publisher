@@ -31,13 +31,27 @@ Optional publish options: `retain` (default `true`), `device_id`,
 `topic_prefix/<key>` with the measurement value and still logs readings at
 INFO. When `ha_discovery` is true, retained Home Assistant MQTT sensor
 discovery configs are published once at startup (requires `device_id`).
-When `accept_writes` is true, the service subscribes to
-`topic_prefix/<key>/set` for every profile register with `access: write`
-and applies payloads via Modbus write before each poll (payloads coerce
-like the client CLI: `true`/`false` → bool, otherwise int, float, or
-string). Home Assistant switch/number discovery for writable keys is not
-published yet. The MQTT client reconnects automatically if the broker
-connection drops while the service is running.
+Sensors with unit `Wh` or `kWh` are advertised as energy counters
+(`state_class: total_increasing`, `device_class: energy`) for the HA
+Energy dashboard. Other numeric sensors use `state_class: measurement`
+and a `device_class` derived from unit when known (`W` power, `V`
+voltage, `A` current, `°C` temperature, `Hz` frequency, `%` battery).
+Readable `binary: true` registers are discovered as `binary_sensor`
+entities (`payload_on`/`payload_off` `true`/`false`). String, fault, and
+protocol registers are diagnostic sensors (`entity_category: diagnostic`).
+Registers with `options` are enum sensors (`device_class: enum`).
+When `accept_writes` is true, the service also polls every
+`access: write` register (same interval) so control state topics stay
+current, subscribes to `topic_prefix/<key>/set`, and applies payloads via
+Modbus write before each poll (payloads coerce like the client CLI:
+`true`/`false` → bool, otherwise int, float, or string). With both
+`ha_discovery` and `accept_writes` enabled (and `device_id` set), writable
+keys are also discovered as Home Assistant controls: `binary: true` →
+`switch`, `options` → `select`, `time`/`datetime` → `text` (with a fixed
+format `pattern`), other numerics → `number` (with profile `min`/`max`/
+`step` when set). The
+MQTT client reconnects automatically if the broker connection drops while
+the service is running.
 
 All Make targets run through Docker:
 

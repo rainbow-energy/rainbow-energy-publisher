@@ -3,8 +3,12 @@
 import json
 
 from rainbow_energy_modbus_client.decode import Measurement
+from rainbow_energy_modbus_client.profiles import RegisterDefinition
 
-from rainbow_energy_publisher.publisher import MeasurementPublisher
+from rainbow_energy_publisher.publisher import (
+    MeasurementPublisher,
+    control_discovery_config,
+)
 
 
 class FakeMqttClient:
@@ -55,6 +59,50 @@ def test_publish_measurements_honours_retain_false():
     ]
 
 
+def test_publish_measurements_formats_bool_as_lowercase_true_false():
+    """Publish boolean values as true/false to match switch command payloads."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(client=client, topic_prefix="rainbow/energy")
+
+    publisher.publish(
+        (
+            Measurement(
+                key="grid_charge_enabled",
+                name="Grid Charge Enabled",
+                value=True,
+                unit="",
+            ),
+            Measurement(
+                key="solar_export",
+                name="Solar Export",
+                value=False,
+                unit="",
+            ),
+        )
+    )
+
+    assert client.published == [
+        ("rainbow/energy/grid_charge_enabled", "true", True),
+        ("rainbow/energy/solar_export", "false", True),
+    ]
+
+
+def _read_register(**overrides) -> RegisterDefinition:
+    values = {
+        "key": "battery_soc",
+        "name": "Battery SOC",
+        "address": 184,
+        "function": "holding",
+        "data_type": "uint16",
+        "scale": 1.0,
+        "unit": "%",
+        "access": "read",
+        "count": 1,
+    }
+    values.update(overrides)
+    return RegisterDefinition(**values)
+
+
 def test_publish_discovery_writes_ha_sensor_config():
     """Publish a retained Home Assistant MQTT discovery config for a sensor."""
     client = FakeMqttClient()
@@ -66,9 +114,7 @@ def test_publish_discovery_writes_ha_sensor_config():
     )
 
     publisher.publish_discovery(
-        (
-            Measurement(key="battery_soc", name="Battery SOC", value=85.0, unit="%"),
-        ),
+        (_read_register(),),
         manufacturer="Sunsynk",
         model="SYNK-8K-SG05LP1",
     )
@@ -83,6 +129,7 @@ def test_publish_discovery_writes_ha_sensor_config():
         "unique_id": "inverter-1_battery_soc",
         "unit_of_measurement": "%",
         "state_class": "measurement",
+        "device_class": "battery",
         "device": {
             "identifiers": ["inverter-1"],
             "name": "inverter-1",
@@ -92,15 +139,465 @@ def test_publish_discovery_writes_ha_sensor_config():
     }
 
 
+def test_publish_discovery_maps_units_to_device_class():
+    """Set Home Assistant device_class from common measurement units."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(key="grid_power", name="Grid Power", unit="W"),
+            _read_register(key="battery_voltage", name="Battery Voltage", unit="V"),
+            _read_register(key="battery_current", name="Battery Current", unit="A"),
+            _read_register(key="inverter_temperature", name="Inverter Temperature", unit="°C"),
+            _read_register(key="grid_frequency", name="Grid Frequency", unit="Hz"),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    classes = [
+        json.loads(payload)["device_class"]
+        for _topic, payload, _retain in client.published
+    ]
+    assert classes == ["power", "voltage", "current", "temperature", "frequency"]
+
+
+def test_publish_discovery_marks_energy_counters_for_ha_energy():
+    """Use total_increasing + energy device_class for Wh/kWh sensors."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="day_pv_energy",
+                name="Day PV Energy",
+                unit="kWh",
+                data_type="uint16",
+            ),
+            _read_register(
+                key="total_grid_import",
+                name="Total Grid Import",
+                unit="Wh",
+                data_type="uint32",
+                count=2,
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    payloads = [json.loads(payload) for _topic, payload, _retain in client.published]
+    assert payloads[0]["state_class"] == "total_increasing"
+    assert payloads[0]["device_class"] == "energy"
+    assert payloads[0]["unit_of_measurement"] == "kWh"
+    assert payloads[1]["state_class"] == "total_increasing"
+    assert payloads[1]["device_class"] == "energy"
+    assert payloads[1]["unit_of_measurement"] == "Wh"
+
+
+def test_publish_discovery_maps_binary_reads_to_binary_sensor():
+    """Publish binary read registers as Home Assistant binary_sensor entities."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="grid_connected",
+                name="Grid Connected",
+                unit="",
+                binary=True,
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert len(client.published) == 1
+    topic, payload, retain = client.published[0]
+    assert topic == "homeassistant/binary_sensor/inverter-1/grid_connected/config"
+    assert retain is True
+    assert json.loads(payload) == {
+        "name": "Grid Connected",
+        "state_topic": "rainbow/energy/grid_connected",
+        "unique_id": "inverter-1_grid_connected",
+        "payload_on": "true",
+        "payload_off": "false",
+        "device": {
+            "identifiers": ["inverter-1"],
+            "name": "inverter-1",
+            "manufacturer": "Sunsynk",
+            "model": "8K",
+        },
+    }
+
+
+def test_publish_discovery_marks_string_reads_as_diagnostic():
+    """Publish string read registers as diagnostic sensors without state_class."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="serial",
+                name="Serial",
+                unit="",
+                data_type="string",
+                scale=None,
+                count=5,
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert len(client.published) == 1
+    topic, payload, _retain = client.published[0]
+    assert topic == "homeassistant/sensor/inverter-1/serial/config"
+    body = json.loads(payload)
+    assert body["entity_category"] == "diagnostic"
+    assert "state_class" not in body
+    assert "unit_of_measurement" not in body or body["unit_of_measurement"] == ""
+
+
+def test_publish_discovery_maps_options_reads_to_enum_sensor():
+    """Publish options read registers as enum sensors with option labels."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="overall_state",
+                name="Overall State",
+                unit="",
+                options={0: "Standby", 1: "Online", 2: "Offline"},
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert len(client.published) == 1
+    topic, payload, _retain = client.published[0]
+    assert topic == "homeassistant/sensor/inverter-1/overall_state/config"
+    body = json.loads(payload)
+    assert body["device_class"] == "enum"
+    assert body["options"] == ["Standby", "Online", "Offline"]
+    assert "state_class" not in body
+
+
+def test_publish_discovery_marks_fault_and_protocol_as_diagnostic():
+    """Publish fault/protocol string-like reads as diagnostic sensors."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="fault",
+                name="Fault",
+                unit="",
+                data_type="fault",
+                count=4,
+                bits={0: "Grid lost"},
+            ),
+            _read_register(
+                key="protocol",
+                name="Protocol",
+                unit="",
+                data_type="protocol",
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    topics = [topic for topic, _payload, _retain in client.published]
+    assert topics == [
+        "homeassistant/sensor/inverter-1/fault/config",
+        "homeassistant/sensor/inverter-1/protocol/config",
+    ]
+    for _topic, payload, _retain in client.published:
+        body = json.loads(payload)
+        assert body["entity_category"] == "diagnostic"
+        assert "state_class" not in body
+
+
 def test_publish_discovery_skips_when_device_id_missing():
     """Do not publish discovery configs without a configured device_id."""
     client = FakeMqttClient()
     publisher = MeasurementPublisher(client=client, topic_prefix="rainbow/energy")
 
     publisher.publish_discovery(
-        (Measurement(key="battery_soc", name="Battery SOC", value=85.0, unit="%"),),
+        (_read_register(),),
         manufacturer="Sunsynk",
         model="SYNK-8K-SG05LP1",
+    )
+
+    assert client.published == []
+
+
+def _write_register(**overrides) -> RegisterDefinition:
+    values = {
+        "key": "export_limit",
+        "name": "Export Limit",
+        "address": 200,
+        "function": "holding",
+        "data_type": "uint16",
+        "scale": 1.0,
+        "unit": "W",
+        "access": "write",
+        "count": 1,
+    }
+    values.update(overrides)
+    return RegisterDefinition(**values)
+
+
+def test_control_discovery_config_maps_binary_to_switch():
+    """Map binary writable registers to Home Assistant switch discovery."""
+    register = _write_register(
+        key="grid_charge_enabled",
+        name="Grid Charge Enabled",
+        unit="",
+        binary=True,
+        bitmask=0x1,
+    )
+
+    component, payload = control_discovery_config(
+        register,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert component == "switch"
+    assert payload["command_topic"] == "rainbow/energy/grid_charge_enabled/set"
+    assert payload["state_topic"] == "rainbow/energy/grid_charge_enabled"
+    assert payload["payload_on"] == "true"
+    assert payload["payload_off"] == "false"
+
+
+def test_control_discovery_config_maps_options_to_select():
+    """Map options writable registers to Home Assistant select discovery."""
+    register = _write_register(
+        key="aux_port_usage",
+        name="AUX Port Usage",
+        unit="",
+        options={0: "Disable", 1: "Smartload", 2: "Generator"},
+    )
+
+    component, payload = control_discovery_config(
+        register,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert component == "select"
+    assert payload["options"] == ["Disable", "Smartload", "Generator"]
+    assert payload["command_topic"] == "rainbow/energy/aux_port_usage/set"
+
+
+def test_control_discovery_config_maps_numeric_to_number():
+    """Map scaled numeric writable registers to Home Assistant number discovery."""
+    register = _write_register()
+
+    component, payload = control_discovery_config(
+        register,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert component == "number"
+    assert payload["unit_of_measurement"] == "W"
+    assert payload["command_topic"] == "rainbow/energy/export_limit/set"
+    assert "min" not in payload
+    assert "max" not in payload
+    assert "step" not in payload
+
+
+def test_control_discovery_config_uses_profile_number_bounds():
+    """Advertise min/max/step from the profile when present."""
+    register = _write_register(
+        key="battery_shutdown_capacity",
+        name="Battery Shutdown Capacity",
+        unit="%",
+        min=0,
+        max=100,
+        step=1,
+    )
+
+    _component, payload = control_discovery_config(
+        register,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert payload["min"] == 0
+    assert payload["max"] == 100
+    assert payload["step"] == 1
+
+
+def test_control_discovery_config_maps_time_to_text():
+    """Map writable time registers to Home Assistant text entities."""
+    component, payload = control_discovery_config(
+        _write_register(key="prog1_time", name="Prog1 Time", data_type="time", unit=""),
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert component == "text"
+    assert payload["command_topic"] == "rainbow/energy/prog1_time/set"
+    assert payload["state_topic"] == "rainbow/energy/prog1_time"
+    assert payload["pattern"] == r"^([01]?\d|2[0-3]):[0-5]\d$"
+    assert "mode" not in payload
+
+
+def test_control_discovery_config_maps_datetime_to_text():
+    """Map writable datetime registers to Home Assistant text entities."""
+    component, payload = control_discovery_config(
+        _write_register(
+            key="date_time",
+            name="Date Time",
+            data_type="datetime",
+            count=3,
+            unit="",
+        ),
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    assert component == "text"
+    assert payload["command_topic"] == "rainbow/energy/date_time/set"
+    assert payload["state_topic"] == "rainbow/energy/date_time"
+    assert payload["pattern"] == (
+        r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]) "
+        r"([01]?\d|2[0-3]):[0-5]\d:[0-5]\d$"
+    )
+    assert "mode" not in payload
+
+
+def test_control_discovery_config_skips_non_writable_registers():
+    """Ignore read-only registers when building control discovery."""
+    register = RegisterDefinition(
+        key="battery_soc",
+        name="Battery SOC",
+        address=184,
+        function="holding",
+        data_type="uint16",
+        scale=1.0,
+        unit="%",
+        access="read",
+        count=1,
+    )
+    assert (
+        control_discovery_config(
+            register,
+            topic_prefix="rainbow/energy",
+            device_id="inverter-1",
+            manufacturer="Sunsynk",
+            model="8K",
+        )
+        is None
+    )
+
+
+def test_publish_control_discovery_writes_ha_configs():
+    """Publish retained switch/number/select discovery configs for writable keys."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_control_discovery(
+        (
+            _write_register(
+                key="grid_charge_enabled",
+                name="Grid Charge Enabled",
+                unit="",
+                binary=True,
+            ),
+            _write_register(),
+            _write_register(
+                key="aux_port_usage",
+                name="AUX Port Usage",
+                unit="",
+                options={0: "Disable", 1: "Smartload"},
+            ),
+            _write_register(key="prog1_time", name="Prog1 Time", data_type="time", unit=""),
+            _write_register(
+                key="date_time",
+                name="Date Time",
+                data_type="datetime",
+                count=3,
+                unit="",
+            ),
+            _read_register(),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    topics = [topic for topic, _payload, _retain in client.published]
+    assert topics == [
+        "homeassistant/switch/inverter-1/grid_charge_enabled/config",
+        "homeassistant/number/inverter-1/export_limit/config",
+        "homeassistant/select/inverter-1/aux_port_usage/config",
+        "homeassistant/text/inverter-1/prog1_time/config",
+        "homeassistant/text/inverter-1/date_time/config",
+    ]
+    assert all(retain for _topic, _payload, retain in client.published)
+
+
+def test_publish_control_discovery_skips_when_device_id_missing():
+    """Do not publish control discovery configs without a configured device_id."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(client=client, topic_prefix="rainbow/energy")
+
+    publisher.publish_control_discovery(
+        (_write_register(),),
+        manufacturer="Sunsynk",
+        model="8K",
     )
 
     assert client.published == []

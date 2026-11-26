@@ -34,6 +34,7 @@ def test_load_config_defaults_mqtt_publish_options_when_omitted():
     assert config.mqtt.device_id is None
     assert config.mqtt.ha_discovery is False
     assert config.mqtt.discovery_prefix == "homeassistant"
+    assert config.mqtt.commands is False
 
 
 def test_load_config_reads_mqtt_publish_options_from_yaml(tmp_path: Path):
@@ -54,6 +55,7 @@ mqtt:
   device_id: inverter-1
   ha_discovery: true
   discovery_prefix: ha
+  commands: true
 """,
     )
 
@@ -63,6 +65,7 @@ mqtt:
     assert config.mqtt.device_id == "inverter-1"
     assert config.mqtt.ha_discovery is True
     assert config.mqtt.discovery_prefix == "ha"
+    assert config.mqtt.commands is True
 
 
 def test_load_config_defaults_log_level_when_omitted():

@@ -8,10 +8,16 @@ from time import sleep as default_sleep
 
 from rainbow_energy_modbus_client import Client, ClientError
 from rainbow_energy_modbus_client.decode import Measurement
-from rainbow_energy_modbus_client.device import RegisterReader
+from rainbow_energy_modbus_client.device import RegisterTransport
 from rainbow_energy_modbus_client.profiles import DeviceProfile
 
+from rainbow_energy_publisher.commands import (
+    CommandQueue,
+    subscribe_commands,
+    writable_keys,
+)
 from rainbow_energy_publisher.config import DEFAULT_LOG_LEVEL
+from rainbow_energy_publisher.mqtt import MqttClient
 from rainbow_energy_publisher.publisher import MeasurementPublisher
 
 logger = logging.getLogger(__name__)
@@ -32,7 +38,7 @@ def configure_logging(level: str = DEFAULT_LOG_LEVEL) -> None:
 
 def run_service(
     *,
-    reader: RegisterReader,
+    reader: RegisterTransport,
     profile: DeviceProfile,
     keys: Sequence[str],
     interval: float = 1.0,
@@ -41,6 +47,9 @@ def run_service(
     log_level: str = DEFAULT_LOG_LEVEL,
     publisher: MeasurementPublisher | None = None,
     all_keys: bool = False,
+    commands_enabled: bool = False,
+    mqtt_client: MqttClient | None = None,
+    topic_prefix: str | None = None,
 ) -> None:
     """Poll measurements until interrupted or iterations complete."""
     configure_logging(log_level)
@@ -50,6 +59,12 @@ def run_service(
         return
 
     client = Client(reader, profile, keys=resolved_keys)
+    command_queue = _start_command_subscription(
+        profile=profile,
+        commands_enabled=commands_enabled,
+        mqtt_client=mqtt_client,
+        topic_prefix=topic_prefix,
+    )
     _publish_discovery_if_enabled(publisher, profile, resolved_keys)
     _run_poll_loop(
         client,
@@ -57,7 +72,35 @@ def run_service(
         interval=interval,
         sleep=sleep,
         iterations=iterations,
+        command_queue=command_queue,
     )
+
+
+def _start_command_subscription(
+    *,
+    profile: DeviceProfile,
+    commands_enabled: bool,
+    mqtt_client: MqttClient | None,
+    topic_prefix: str | None,
+) -> CommandQueue | None:
+    """Subscribe to MQTT /set topics when commands are enabled."""
+    if not commands_enabled:
+        return None
+    if mqtt_client is None or not topic_prefix:
+        logger.warning(
+            "mqtt.commands is enabled but MQTT client or topic_prefix is missing; "
+            "skipping command subscription"
+        )
+        return None
+
+    queue = CommandQueue()
+    subscribe_commands(
+        client=mqtt_client,
+        topic_prefix=topic_prefix,
+        allowed_keys=writable_keys(profile),
+        queue=queue,
+    )
+    return queue
 
 
 def _resolve_keys(
@@ -129,12 +172,19 @@ def _run_poll_loop(
     interval: float,
     sleep: Callable[[float], None],
     iterations: int | None,
+    command_queue: CommandQueue | None,
 ) -> None:
     """Run the client poll loop until interrupted or iterations complete."""
+
+    def sleep_between_polls(seconds: float) -> None:
+        sleep(seconds)
+        _apply_pending_writes(client, command_queue)
+
     try:
+        _apply_pending_writes(client, command_queue)
         for measurements in client.run(
             interval=interval,
-            sleep=sleep,
+            sleep=sleep_between_polls if command_queue is not None else sleep,
             iterations=iterations,
             on_error=_on_poll_error,
         ):
@@ -142,6 +192,22 @@ def _run_poll_loop(
             _publish_measurements(publisher, measurements)
     except KeyboardInterrupt:
         return
+
+
+def _apply_pending_writes(
+    client: Client,
+    command_queue: CommandQueue | None,
+) -> None:
+    """Drain queued MQTT commands and write them through the Modbus client."""
+    if command_queue is None:
+        return
+    pending = command_queue.drain()
+    if not pending:
+        return
+    try:
+        client.write(pending)
+    except ClientError as error:
+        logger.error("write failed: %s", error, exc_info=error)
 
 
 def _on_poll_error(error: ClientError) -> None:

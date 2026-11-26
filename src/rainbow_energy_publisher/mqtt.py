@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import paho.mqtt.client as mqtt
+
+MessageCallback = Callable[[str, str], None]
 
 
 class MqttClient:
@@ -15,6 +19,21 @@ class MqttClient:
     def publish(self, topic: str, payload: str, *, retain: bool = False) -> None:
         """Publish one message to a topic."""
         self._client.publish(topic, payload, retain=retain)
+
+    def subscribe(self, topic: str, callback: MessageCallback) -> None:
+        """Subscribe to *topic* and invoke *callback(topic, payload)* on messages."""
+
+        def _on_message(_client: object, _userdata: object, message: object) -> None:
+            topic_text = str(getattr(message, "topic"))
+            raw = getattr(message, "payload")
+            if isinstance(raw, bytes):
+                payload = raw.decode("utf-8", errors="replace")
+            else:
+                payload = str(raw)
+            callback(topic_text, payload)
+
+        self._client.message_callback_add(topic, _on_message)
+        self._client.subscribe(topic)
 
     def close(self) -> None:
         """Stop the network loop and disconnect."""

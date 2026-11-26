@@ -26,12 +26,18 @@ every readable register from the profile. MQTT broker settings live under
 optional `username` / `password`). Prefer `MQTT_USERNAME` /
 `MQTT_PASSWORD` env vars over putting secrets in YAML.
 Optional publish options: `retain` (default `true`), `device_id`,
-`ha_discovery` (default `false`), and `discovery_prefix` (default
-`homeassistant`). Each poll publishes `topic_prefix/<key>` with the
-measurement value and still logs readings at INFO. When `ha_discovery` is
-true, retained Home Assistant MQTT sensor discovery configs are published
-once at startup (requires `device_id`). The MQTT client reconnects
-automatically if the broker connection drops while the service is running.
+`ha_discovery` (default `false`), `discovery_prefix` (default
+`homeassistant`), and `commands` (default `false`). Each poll publishes
+`topic_prefix/<key>` with the measurement value and still logs readings at
+INFO. When `ha_discovery` is true, retained Home Assistant MQTT sensor
+discovery configs are published once at startup (requires `device_id`).
+When `commands` is true, the service subscribes to
+`topic_prefix/<key>/set` for every profile register with `access: write`
+and applies payloads via Modbus write before each poll (payloads coerce
+like the client CLI: `true`/`false` → bool, otherwise int, float, or
+string). Home Assistant switch/number discovery for writable keys is not
+published yet. The MQTT client reconnects automatically if the broker
+connection drops while the service is running.
 
 All Make targets run through Docker:
 

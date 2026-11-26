@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
     publisher = _build_publisher(config, mqtt_client)
     try:
-        return _run_with_modbus(config, profile, reader, publisher)
+        return _run_with_modbus(config, profile, reader, publisher, mqtt_client)
     finally:
         mqtt_client.close()
 
@@ -117,6 +117,7 @@ def _run_with_modbus(
     profile: DeviceProfile,
     reader: RegisterReader,
     publisher: MeasurementPublisher,
+    mqtt_client: MqttClient,
 ) -> int:
     """Open Modbus and run the service loop; return a process exit code."""
     try:
@@ -129,6 +130,9 @@ def _run_with_modbus(
                 interval=config.interval,
                 log_level=config.log_level,
                 publisher=publisher,
+                commands_enabled=config.mqtt.commands,
+                mqtt_client=mqtt_client,
+                topic_prefix=config.mqtt.topic_prefix,
             )
     except OSError as error:
         return _fail("modbus error", error)

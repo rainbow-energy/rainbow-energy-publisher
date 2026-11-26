@@ -18,7 +18,6 @@ def _state_payload(value: object) -> str:
     return str(value)
 
 
-_ENERGY_UNITS = frozenset({"Wh", "kWh"})
 _UNIT_DEVICE_CLASSES = {
     "W": "power",
     "V": "voltage",
@@ -26,18 +25,19 @@ _UNIT_DEVICE_CLASSES = {
     "°C": "temperature",
     "Hz": "frequency",
     "%": "battery",
+    "Wh": "energy",
+    "kWh": "energy",
 }
 
 
 def _sensor_class_fields(unit: str) -> dict[str, str]:
     """Return HA state_class / device_class fields for a sensor unit."""
-    if unit in _ENERGY_UNITS:
-        return {
-            "state_class": "total_increasing",
-            "device_class": "energy",
-        }
-    fields = {"state_class": "measurement"}
     device_class = _UNIT_DEVICE_CLASSES.get(unit)
+    fields = {
+        "state_class": (
+            "total_increasing" if device_class == "energy" else "measurement"
+        ),
+    }
     if device_class is not None:
         fields["device_class"] = device_class
     return fields

@@ -77,7 +77,7 @@ def sensor_discovery_config(
                 "payload_off": "false",
             },
         )
-    if register.data_type == "string":
+    if register.data_type in {"string", "fault", "protocol"}:
         return (
             "sensor",
             {

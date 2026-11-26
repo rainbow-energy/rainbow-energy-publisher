@@ -35,8 +35,8 @@ Sensors with unit `Wh` or `kWh` are advertised as energy counters
 (`state_class: total_increasing`, `device_class: energy`) for the HA
 Energy dashboard; other sensors use `state_class: measurement`.
 Readable `binary: true` registers are discovered as `binary_sensor`
-entities (`payload_on`/`payload_off` `true`/`false`). String registers
-are discovered as diagnostic sensors (`entity_category: diagnostic`).
+entities (`payload_on`/`payload_off` `true`/`false`). String, fault, and
+protocol registers are diagnostic sensors (`entity_category: diagnostic`).
 Registers with `options` are enum sensors (`device_class: enum`).
 When `accept_writes` is true, the service also polls every
 `access: write` register (same interval) so control state topics stay

@@ -281,6 +281,47 @@ def test_publish_discovery_maps_options_reads_to_enum_sensor():
     assert "state_class" not in body
 
 
+def test_publish_discovery_marks_fault_and_protocol_as_diagnostic():
+    """Publish fault/protocol string-like reads as diagnostic sensors."""
+    client = FakeMqttClient()
+    publisher = MeasurementPublisher(
+        client=client,
+        topic_prefix="rainbow/energy",
+        device_id="inverter-1",
+    )
+
+    publisher.publish_discovery(
+        (
+            _read_register(
+                key="fault",
+                name="Fault",
+                unit="",
+                data_type="fault",
+                count=4,
+                bits={0: "Grid lost"},
+            ),
+            _read_register(
+                key="protocol",
+                name="Protocol",
+                unit="",
+                data_type="protocol",
+            ),
+        ),
+        manufacturer="Sunsynk",
+        model="8K",
+    )
+
+    topics = [topic for topic, _payload, _retain in client.published]
+    assert topics == [
+        "homeassistant/sensor/inverter-1/fault/config",
+        "homeassistant/sensor/inverter-1/protocol/config",
+    ]
+    for _topic, payload, _retain in client.published:
+        body = json.loads(payload)
+        assert body["entity_category"] == "diagnostic"
+        assert "state_class" not in body
+
+
 def test_publish_discovery_skips_when_device_id_missing():
     """Do not publish discovery configs without a configured device_id."""
     client = FakeMqttClient()
